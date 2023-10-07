@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  node-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agora-api
+    ports:
+      - '${APP_PORT}:9900'
+    restart: unless-stopped
+    volumes:
+      - .:/app
+      - /app/node_modules
+    env_file:
+      - .env
+    networks:
+      - backend
+networks:
+  backend:
