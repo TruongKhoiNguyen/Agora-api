@@ -2,10 +2,10 @@ name: Continuous Integration Workflow
 
 on:
   push:
-    branches: [master]
+    branches: [main, develop]
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [master]
+    branches: [main, develop]
 
 jobs:
   test:
