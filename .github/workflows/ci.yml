@@ -36,6 +36,6 @@ jobs:
       - name: start lint
         run: |
           echo "start lint"
-          yarn lint:fix
-          yarn prettier:fix
+          yarn lint
+          yarn prettier
           echo "lint done."
