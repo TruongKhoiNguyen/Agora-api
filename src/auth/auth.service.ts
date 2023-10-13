@@ -1,17 +1,21 @@
+import { Status } from './../user/schemas/user.schema'
 import {
+  BadRequestException,
   ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
+  NotFoundException,
   UnauthorizedException
 } from '@nestjs/common'
+import { MailerService } from '@nest-modules/mailer'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model, Types } from 'mongoose'
 import * as bcrypt from 'bcrypt'
 import { randomBytes } from 'crypto'
 
 import { User } from 'src/user/schemas/user.schema'
-import { LoginDto, RegisterDto } from './dto'
+import { ForgotPassDto, LoginDto, RefreshDto, RegisterDto, ResetPassDto } from './dto'
 import { Key } from 'src/user/schemas/key.schema'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
@@ -22,7 +26,8 @@ export class AuthService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Key.name) private keyModel: Model<Key>,
     private jwtSercive: JwtService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private mailerService: MailerService
   ) {}
 
   async register(registerDto: RegisterDto): Promise<any> {
@@ -32,12 +37,31 @@ export class AuthService {
       throw new HttpException('Email already have an account', HttpStatus.BAD_REQUEST)
     }
 
-    const hashPassword = await this.hashPassword(registerDto.password)
+    const hashPassword = await this.bcrypHash(registerDto.password)
 
-    return await this.userModel.create({
+    const newUser = await this.userModel.create({
       ...registerDto,
       password: hashPassword
     })
+
+    if (newUser) {
+      const hashed = await this.bcrypHash(newUser._id.toString())
+      await this.mailerService.sendMail({
+        to: registerDto.email,
+        subject: 'Welcome to Agora',
+        template: './verify',
+        context: {
+          name: registerDto.firstName,
+          verifyUrl: `http://${this.configService.get<string>(
+            'APP_HOST'
+          )}:${this.configService.get<string>(
+            'APP_PORT'
+          )}/api/v1/auth/verify?userid=${newUser._id.toString()}&token=${hashed}`
+        }
+      })
+    }
+
+    return newUser
   }
 
   async login(loginDto: LoginDto): Promise<any> {
@@ -73,7 +97,23 @@ export class AuthService {
     }
   }
 
-  async refreshToken(refreshToken: string): Promise<any> {
+  async verifyAccount(userid: string, token: string) {
+    const checked = await bcrypt.compare(userid, token)
+
+    if (!checked) {
+      throw new BadRequestException('Verify account failed')
+    }
+
+    const user = await this.userModel.findById(new Types.ObjectId(userid)).lean()
+
+    return await this.userModel.updateOne(user, {
+      $set: {
+        status: Status.ACTIVE
+      }
+    })
+  }
+
+  async refreshToken({ refreshToken }: RefreshDto): Promise<any> {
     const foundToken = await this.keyModel.findOne({ refreshTokenUseds: refreshToken })
 
     // token is used
@@ -113,6 +153,58 @@ export class AuthService {
     }
   }
 
+  async forgotPassword(forgotPassDto: ForgotPassDto) {
+    const user = await this.userModel.findOne({ email: forgotPassDto.email }).lean()
+
+    if (!user) {
+      throw new NotFoundException('Email not registered!!!')
+    }
+
+    //generate password reset token
+    const token = this.jwtSercive.sign(
+      {
+        id: user._id.toString()
+      },
+      {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: this.configService.get<string>('JWT_RESET_PASS_TOKEN_EXP_IN')
+      }
+    )
+
+    // Send the password reset email
+    return await this.mailerService.sendMail({
+      to: user.email,
+      subject: 'Agora reset password',
+      template: './reset-password',
+      context: {
+        name: user.firstName,
+        resetPassUrl: `http://${this.configService.get<string>(
+          'APP_HOST'
+        )}:${this.configService.get<string>('APP_PORT')}/api/v1/auth/reset-password?token=${token}`
+      }
+    })
+  }
+
+  async resetPassword(resetPassDto: ResetPassDto, token: string) {
+    const { id } = await this.jwtSercive.verify(token, {
+      secret: this.configService.get<string>('JWT_SECRET')
+    })
+
+    const user = await this.userModel.findById(new Types.ObjectId(id)).lean()
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired password reset token')
+    }
+
+    const hashPassword = await this.bcrypHash(resetPassDto.password)
+
+    return await this.userModel.updateOne(user, {
+      $set: {
+        password: hashPassword
+      }
+    })
+  }
+
   public async generateToken(
     payload: { id: Types.ObjectId; email: string },
     refreshSecretKey: string,
@@ -130,10 +222,10 @@ export class AuthService {
     return { accessToken, refreshToken }
   }
 
-  private async hashPassword(password: string): Promise<string> {
+  private async bcrypHash(payload: string): Promise<string> {
     const saltRound = 10
     const salt = await bcrypt.genSalt(saltRound)
-    const hash = await bcrypt.hash(password, salt)
+    const hash = await bcrypt.hash(payload, salt)
 
     return hash
   }
