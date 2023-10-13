@@ -1,10 +1,16 @@
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common'
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException
+} from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model, Types } from 'mongoose'
 import * as bcrypt from 'bcrypt'
 import { randomBytes } from 'crypto'
 
-import { User, UserDocument } from 'src/user/schemas/user.schema'
+import { User } from 'src/user/schemas/user.schema'
 import { LoginDto, RegisterDto } from './dto'
 import { Key } from 'src/user/schemas/key.schema'
 import { JwtService } from '@nestjs/jwt'
@@ -67,62 +73,45 @@ export class AuthService {
     }
   }
 
-  async refreshToken(user: UserDocument): Promise<any> {
-    const key = await this.keyModel.findOne({ user: user._id }).lean()
-    const token = await this.generateToken(
-      { id: user._id, email: user.email },
-      key.refreshSecretKey,
-      key.accessSecretKey
-    )
-    await this.keyModel.updateOne(key, { refreshToken: token.refreshToken })
+  async refreshToken(refreshToken: string): Promise<any> {
+    const foundToken = await this.keyModel.findOne({ refreshTokenUseds: refreshToken })
+
+    // token is used
+    if (foundToken) {
+      const { id, email } = await this.jwtSercive.verify(refreshToken, {
+        secret: foundToken.refreshSecretKey
+      })
+      console.log('bad-refresh:::\n', { id, email })
+      await this.keyModel.deleteOne({ user: foundToken.user })
+      throw new ForbiddenException('Something wrong happened!! Pls login again tks!')
+    }
+
+    const key = await this.keyModel.findOne({ refreshToken }).lean()
+
+    const { id, email } = await this.jwtSercive.verify(refreshToken, {
+      secret: key.refreshSecretKey
+    })
+
+    const foundUser = await this.userModel.findOne({ email }).lean()
+    if (!foundUser) {
+      throw new UnauthorizedException('User not registered')
+    }
+
+    const token = await this.generateToken({ id, email }, key.refreshSecretKey, key.accessSecretKey)
+
+    await this.keyModel.updateOne(key, {
+      $set: {
+        refreshToken: token.refreshToken
+      },
+      $addToSet: {
+        refreshTokenUseds: refreshToken
+      }
+    })
 
     return {
       token
     }
   }
-
-  // async refreshToken(refreshToken: string): Promise<any> {
-  //   console.log('authService:::refreshToken', refreshToken)
-  //   const foundToken = await this.keyModel.findOne({ refreshTokenUseds: refreshToken })
-  //   console.log('authService:::foundToken', foundToken)
-  //   // token is used
-  //   if (foundToken) {
-  //     const { id, email } = await this.jwtSercive.verify(refreshToken, {
-  //       secret: foundToken.refreshSecretKey
-  //     })
-  //     console.log('bad-refresh:::\n', { id, email })
-  //     const result = await this.keyModel.deleteOne({ user: foundToken.user })
-  //     console.log(result)
-  //     throw new ForbiddenException('Something wrong happened!! Pls login again tks!')
-  //   }
-
-  //   const key = await this.keyModel.findOne({ refreshToken }).lean()
-  //   console.log('authService:::key', key)
-
-  //   const { id, email } = await this.jwtSercive.verify(refreshToken, {
-  //     secret: key.refreshSecretKey
-  //   })
-
-  //   const foundUser = await this.userModel.findOne({ email }).lean()
-  //   if (!foundUser) {
-  //     throw new UnauthorizedException('User not registered')
-  //   }
-
-  //   const token = await this.generateToken({ id, email }, key.accessSecretKey, key.refreshSecretKey)
-
-  //   await this.keyModel.updateOne(key, {
-  //     $set: {
-  //       refreshToken: token.refreshToken
-  //     },
-  //     $addToSet: {
-  //       refreshTokenUseds: refreshToken
-  //     }
-  //   })
-
-  //   return {
-  //     token
-  //   }
-  // }
 
   public async generateToken(
     payload: { id: Types.ObjectId; email: string },
