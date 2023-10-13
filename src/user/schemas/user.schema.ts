@@ -9,6 +9,7 @@ export enum Role {
 }
 
 export enum Status {
+  NOT_VERIFIED = 'not_verified',
   ACTIVE = 'active',
   BLOCKED = 'blocked'
 }
@@ -47,7 +48,7 @@ export class User {
   @Prop({ default: AccountType.LOCAL })
   accountType: AccountType
 
-  @Prop({ default: Status.ACTIVE })
+  @Prop({ default: Status.NOT_VERIFIED })
   status: Status
 
   @Prop({ default: Role.USER })

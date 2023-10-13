@@ -1,2 +1,5 @@
 export * from './register.dto'
 export * from './login.dto'
+export * from './refresh.dto'
+export * from './forgot-pass.dto'
+export * from './reset-pass.dto'
