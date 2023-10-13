@@ -9,8 +9,7 @@ import {
 } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { LoginDto, RegisterDto } from './dto'
-import { GetUserRequest, Public } from './decorators'
-import { UserDocument } from 'src/user/schemas/user.schema'
+import { Public } from './decorators'
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -50,13 +49,9 @@ export class AuthController {
 
   @Post('refresh')
   @UsePipes(ValidationPipe)
-  async refreshToken(
-    @GetUserRequest() user: UserDocument
-    // @Body('refreshToken') refreshToken: string
-  ) {
+  async refreshToken(@Body('refreshToken') refreshToken: string) {
     try {
-      const token = await this.authService.refreshToken(user)
-      // const token = await this.authService.refreshToken(refreshToken)
+      const token = await this.authService.refreshToken(refreshToken)
       return {
         success: true,
         message: 'refresh token success!!',

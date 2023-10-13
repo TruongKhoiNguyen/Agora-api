@@ -1,10 +1,4 @@
-import {
-  ExecutionContext,
-  HttpException,
-  HttpStatus,
-  Injectable,
-  UnauthorizedException
-} from '@nestjs/common'
+import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { AuthGuard } from '@nestjs/passport'
 import { IS_PUBLIC_KEY } from '../decorators'
@@ -27,8 +21,13 @@ export class JwtAuthGuard extends AuthGuard(['jwt', 'jwt-refresh-token']) {
 
   handleRequest(err: any, user: any, info: any) {
     if (err || !user || info) {
+      console.log(info)
       if (info) {
-        throw new HttpException(info[0].message, HttpStatus.UNAUTHORIZED)
+        const errorMess = []
+        info.forEach((val: any) => {
+          errorMess.push(val.message)
+        })
+        throw new UnauthorizedException(errorMess.join('; '))
       } else {
         throw err || new UnauthorizedException()
       }
