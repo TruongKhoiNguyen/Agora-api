@@ -17,6 +17,8 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Extract Git Tag
+        run: echo "IMAGE_TAG=$GITHUB_REF_NAME-$GITHUB_RUN_NUMBER-$GITHUB_SHA::7" >> $GITHUB_ENV
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         id: docker_build
@@ -24,8 +26,9 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/agora-api:${{ github.sha }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/agora-api:$IMAGE_TAG
       - name: Verify
         run: |
-          echo GITHUB_REF=$GITHUB_REF_NAME-$GITHUB_RUN_NUMBER-$GITHUB_SHA.substring(0, 7)
+          echo GITHUB_SHA=$GITHUB_SHA::7
+          echo IMAGE_TAG=$IMAGE_TAG
           echo ${{ steps.docker_build.outputs.digest }}
