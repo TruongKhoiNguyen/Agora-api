@@ -20,13 +20,15 @@ jobs:
       - name: Extract Git Tag
         run: echo "IMAGE_TAG=$GITHUB_REF_NAME-$GITHUB_RUN_NUMBER-$GITHUB_SHA::7" >> $GITHUB_ENV
       - name: Build and push Docker image
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
         uses: docker/build-push-action@v5
         id: docker_build
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/agora-api:$IMAGE_TAG
+          tags: ${{ secrets.DOCKER_USERNAME }}/agora-api:${{ env.IMAGE_TAG }}}
       - name: Verify
         run: |
           echo GITHUB_SHA=$GITHUB_SHA::7
