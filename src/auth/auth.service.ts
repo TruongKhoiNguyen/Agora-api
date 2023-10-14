@@ -93,7 +93,8 @@ export class AuthService {
     await this.createKey(user._id, refreshSecretKey, accessSecretKey, token.refreshToken)
 
     return {
-      token
+      token,
+      userId: user._id.toString()
     }
   }
 
