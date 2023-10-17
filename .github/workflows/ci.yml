@@ -3,7 +3,7 @@ name: Continuous Integration Workflow
 on:
   push:
     branches: [main, develop]
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
     branches: [main, develop]
 
