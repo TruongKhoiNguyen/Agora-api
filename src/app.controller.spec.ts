@@ -15,8 +15,10 @@ describe('AppController', () => {
   })
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!')
+    it('should return hello', () => {
+      expect(appController.getHello()).toMatchObject({
+        message: 'Welcome to the Agora API! access to /api for more apis info. tks!!!'
+      })
     })
   })
 })
