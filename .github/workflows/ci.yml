@@ -20,6 +20,8 @@ jobs:
         run: yarn
       - name: run unit tests
         uses: ArtiomTr/jest-coverage-report-action@v2
+        with:
+          package-manager: yarn
   lint:
     runs-on: ubuntu-latest
     steps:
