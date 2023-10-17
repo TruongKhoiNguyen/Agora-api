@@ -1,4 +1,3 @@
-import { MailerService } from '@nest-modules/mailer'
 import { AuthService } from './auth.service'
 import {
   BadRequestException,
@@ -17,10 +16,7 @@ import { Public } from './decorators'
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private authService: AuthService,
-    private mailerService: MailerService
-  ) {}
+  constructor(private authService: AuthService) {}
 
   @Public(true)
   @Post('register')
@@ -74,12 +70,11 @@ export class AuthController {
   @ApiQuery({ name: 'userid', required: true })
   @ApiQuery({ name: 'token', required: true })
   async verifyAccount(@Query('userid') userid: string, @Query('token') token: string) {
-    console.log(userid, token)
     try {
       await this.authService.verifyAccount(userid, token)
       return {
         success: true,
-        message: 'verify account success!!'
+        message: 'Verify account success!!'
       }
     } catch (error) {
       throw new BadRequestException(error.message)
