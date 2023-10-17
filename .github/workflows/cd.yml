@@ -7,6 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      IMAGE_TAG: ${{ steps.export_image_tag.outputs.IMAGE_TAG }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -35,13 +37,16 @@ jobs:
         run: |
           echo IMAGE_TAG=$IMAGE_TAG
           echo ${{ steps.docker_build.outputs.digest }}
+      - name: Export IMAGE_TAG to github output
+        id: export_image_tag
+        run: echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
   deploy:
     runs-on: ubuntu-latest
     needs: build
     steps:
       - name: executing remote ssh
         env:
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          IMAGE_TAG: ${{ needs.build.outputs.IMAGE_TAG }}
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DO_HOST }}
