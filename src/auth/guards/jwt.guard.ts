@@ -21,7 +21,6 @@ export class JwtAuthGuard extends AuthGuard(['jwt', 'jwt-refresh-token']) {
 
   handleRequest(err: any, user: any, info: any) {
     if (err || !user || info) {
-      console.log(info)
       if (info) {
         const errorMess = []
         info.forEach((val: any) => {

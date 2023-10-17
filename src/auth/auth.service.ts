@@ -37,7 +37,7 @@ export class AuthService {
       throw new HttpException('Email already have an account', HttpStatus.BAD_REQUEST)
     }
 
-    const hashPassword = await this.bcrypHash(registerDto.password)
+    const hashPassword = await this.bcryptHash(registerDto.password)
 
     const newUser = await this.userModel.create({
       ...registerDto,
@@ -45,7 +45,7 @@ export class AuthService {
     })
 
     if (newUser) {
-      const hashed = await this.bcrypHash(newUser._id.toString())
+      const hashed = await this.bcryptHash(newUser._id.toString())
       await this.mailerService.sendMail({
         to: registerDto.email,
         subject: 'Welcome to Agora',
@@ -69,13 +69,13 @@ export class AuthService {
     const user = await this.userModel.findOne({ email: loginDto.email }).select('+password').lean()
 
     if (!user) {
-      throw new HttpException('Email is not registred.', HttpStatus.BAD_REQUEST)
+      throw new BadRequestException('Email is not registred.')
     }
 
     // match password
     const checkPass = bcrypt.compareSync(loginDto.password, user.password)
     if (!checkPass) {
-      throw new HttpException('Password is not correct', HttpStatus.UNAUTHORIZED)
+      throw new UnauthorizedException('Password is not correct')
     }
 
     // create token
@@ -99,19 +99,15 @@ export class AuthService {
   }
 
   async verifyAccount(userid: string, token: string) {
-    const checked = await bcrypt.compare(userid, token)
+    const checked = bcrypt.compareSync(userid, token)
 
     if (!checked) {
       throw new BadRequestException('Verify account failed')
     }
 
-    const user = await this.userModel.findById(new Types.ObjectId(userid)).lean()
+    const result = await this.userModel.updateOne({ _id: userid }, { status: Status.ACTIVE })
 
-    return await this.userModel.updateOne(user, {
-      $set: {
-        status: Status.ACTIVE
-      }
-    })
+    return result
   }
 
   async refreshToken({ refreshToken }: RefreshDto): Promise<any> {
@@ -133,7 +129,7 @@ export class AuthService {
       secret: key.refreshSecretKey
     })
 
-    const foundUser = await this.userModel.findOne({ email }).lean()
+    const foundUser = await this.userModel.findOne({ email })
     if (!foundUser) {
       throw new UnauthorizedException('User not registered')
     }
@@ -173,7 +169,7 @@ export class AuthService {
     )
 
     // Send the password reset email
-    return await this.mailerService.sendMail({
+    await this.mailerService.sendMail({
       to: user.email,
       subject: 'Agora reset password',
       template: './reset-password',
@@ -184,6 +180,8 @@ export class AuthService {
         )}:${this.configService.get<string>('APP_PORT')}/api/v1/auth/reset-password?token=${token}`
       }
     })
+
+    return true
   }
 
   async resetPassword(resetPassDto: ResetPassDto, token: string) {
@@ -191,26 +189,31 @@ export class AuthService {
       secret: this.configService.get<string>('JWT_SECRET')
     })
 
-    const user = await this.userModel.findById(new Types.ObjectId(id)).lean()
+    const user = await this.userModel
+      .findOne({
+        _id: new Types.ObjectId(id)
+      })
+      .lean()
 
     if (!user) {
       throw new BadRequestException('Invalid or expired password reset token')
     }
 
-    const hashPassword = await this.bcrypHash(resetPassDto.password)
+    const hashPassword = await this.bcryptHash(resetPassDto.password)
 
-    return await this.userModel.updateOne(user, {
+    const result = await this.userModel.updateOne(user, {
       $set: {
         password: hashPassword
       }
     })
+    return result
   }
 
-  public async generateToken(
+  async generateToken(
     payload: { id: Types.ObjectId; email: string },
     refreshSecretKey: string,
     accessSecretKey: string
-  ) {
+  ): Promise<any> {
     const accessToken = await this.jwtSercive.signAsync(payload, {
       secret: accessSecretKey,
       expiresIn: this.configService.get<string>('JWT_ACCESS_TOKEN_EXP_IN')
@@ -223,7 +226,7 @@ export class AuthService {
     return { accessToken, refreshToken }
   }
 
-  private async bcrypHash(payload: string): Promise<string> {
+  async bcryptHash(payload: string): Promise<any> {
     const saltRound = 10
     const salt = await bcrypt.genSalt(saltRound)
     const hash = await bcrypt.hash(payload, salt)
@@ -231,12 +234,12 @@ export class AuthService {
     return hash
   }
 
-  private async createKey(
+  async createKey(
     userId: Types.ObjectId,
     refreshSecretKey: string,
     accessSecretKey: string,
     refreshToken: string
-  ) {
+  ): Promise<any> {
     try {
       const filter = { user: userId }
       const update = {
