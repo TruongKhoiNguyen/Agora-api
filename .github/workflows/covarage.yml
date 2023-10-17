@@ -1,0 +1,20 @@
+name: Generage coverage Workflow
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: run unit tests
+        uses: ArtiomTr/jest-coverage-report-action@v2
+        with:
+          package-manager: yarn
