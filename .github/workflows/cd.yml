@@ -35,3 +35,14 @@ jobs:
         run: |
           echo IMAGE_TAG=$IMAGE_TAG
           echo ${{ steps.docker_build.outputs.digest }}
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: executing remote ssh
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          password: ${{ secrets.DO_PASSWORD }}
+          port: ${{ secrets.DO_PORT }}
+          script: whoami

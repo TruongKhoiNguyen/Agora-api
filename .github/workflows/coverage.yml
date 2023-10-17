@@ -6,7 +6,7 @@ on:
     branches: [main, develop]
 
 jobs:
-  test:
+  coverage:
     runs-on: ubuntu-latest
     steps:
       - name: checkout code
