@@ -175,9 +175,7 @@ export class AuthService {
       template: './reset-password',
       context: {
         name: user.firstName,
-        resetPassUrl: `http://${this.configService.get<string>(
-          'FE_URL'
-        )}/reset-password?token=${token}`
+        resetPassUrl: `${this.configService.get<string>('FE_URL')}/reset-password?token=${token}`
       }
     })
 
