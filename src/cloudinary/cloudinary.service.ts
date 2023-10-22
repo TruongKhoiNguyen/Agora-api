@@ -1,7 +1,7 @@
 import * as path from 'path'
 import * as fs from 'fs'
 
-import { Injectable } from '@nestjs/common'
+import { Injectable, InternalServerErrorException } from '@nestjs/common'
 import { v2 } from 'cloudinary'
 import { CloudinaryResponse } from './cloudinary-response'
 
@@ -29,7 +29,7 @@ export class CloudinaryService {
       }
       return cloudFile
     } catch (error) {
-      console.log(error)
+      throw new InternalServerErrorException("Couldn't upload file")
     }
   }
 
@@ -47,18 +47,18 @@ export class CloudinaryService {
       const response = await v2.uploader.destroy(publish_id)
       return response
     } catch (error) {
-      console.log(error)
+      throw new InternalServerErrorException("Couldn't remove file")
     }
   }
 
-  private async clearFile(filePath: string) {
+  public clearFile(filePath: string): boolean {
     filePath = path.join(__dirname, '..', '..', filePath)
-    console.log(filePath)
     fs.unlink(filePath, err => {
       if (err) {
-        console.log(err)
-        console.log('hehe')
+        return false
       }
     })
+
+    return true
   }
 }

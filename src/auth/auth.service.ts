@@ -176,8 +176,8 @@ export class AuthService {
       context: {
         name: user.firstName,
         resetPassUrl: `http://${this.configService.get<string>(
-          'APP_HOST'
-        )}:${this.configService.get<string>('APP_PORT')}/api/v1/auth/reset-password?token=${token}`
+          'FE_URL'
+        )}/reset-password?token=${token}`
       }
     })
 

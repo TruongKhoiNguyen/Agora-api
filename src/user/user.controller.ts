@@ -11,8 +11,10 @@ import {
 import { UserService } from './user.service'
 import { CloudinaryService } from '../cloudinary/cloudinary.service'
 import { FileInterceptor } from '@nestjs/platform-express'
-import { filterImageConfig, storageConfig } from '../helpers/upload-file.config'
+import { filterImageConfig, storageConfig } from '../configs/upload-file.config'
+import { ApiTags } from '@nestjs/swagger'
 
+@ApiTags('User')
 @Controller('users')
 export class UserController {
   constructor(
