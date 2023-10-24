@@ -7,6 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      IMAGE_TAG: ${{ steps.export_image_tag.outputs.IMAGE_TAG }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -35,14 +37,24 @@ jobs:
         run: |
           echo IMAGE_TAG=$IMAGE_TAG
           echo ${{ steps.docker_build.outputs.digest }}
+      - name: Export IMAGE_TAG to github output
+        id: export_image_tag
+        run: echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
   deploy:
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - name: executing remote ssh
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.IMAGE_TAG }}
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USERNAME }}
-          password: ${{ secrets.DO_PASSWORD }}
+          key: ${{ secrets.DO_PKEY }}
           port: ${{ secrets.DO_PORT }}
-          script: whoami
+          script: |
+            su thinh
+            docker ps -q --filter "name=agora-api" | grep -q . && docker stop agora-api
+            docker pull ${{ secrets.DOCKER_USERNAME }}/agora-api:${{ env.IMAGE_TAG }}
+            docker run -d -p 80:9900 --rm --name agora-api ${{ secrets.DOCKER_USERNAME }}/agora-api:${{ env.IMAGE_TAG }}
