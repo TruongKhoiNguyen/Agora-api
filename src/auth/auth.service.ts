@@ -1,4 +1,3 @@
-import { Status } from './../user/schemas/user.schema'
 import {
   BadRequestException,
   ForbiddenException,
@@ -14,7 +13,7 @@ import { Model, Types } from 'mongoose'
 import * as bcrypt from 'bcrypt'
 import { randomBytes } from 'crypto'
 
-import { User } from 'src/user/schemas/user.schema'
+import { Status, User } from 'src/user/schemas/user.schema'
 import { ForgotPassDto, LoginDto, RefreshDto, RegisterDto, ResetPassDto } from './dto'
 import { Key } from 'src/user/schemas/key.schema'
 import { JwtService } from '@nestjs/jwt'
@@ -44,7 +43,7 @@ export class AuthService {
       password: hashPassword
     })
 
-    if (newUser) {
+    if (newUser && !(this.configService.get('MAIL_DISABLE') === 'true')) {
       const hashed = await this.bcryptHash(newUser._id.toString())
       await this.mailerService.sendMail({
         to: registerDto.email,
@@ -75,7 +74,7 @@ export class AuthService {
     // match password
     const checkPass = bcrypt.compareSync(loginDto.password, user.password)
     if (!checkPass) {
-      throw new UnauthorizedException('Password is not correct')
+      throw new BadRequestException('Password is not correct')
     }
 
     // create token
