@@ -5,7 +5,7 @@ import { CreateConvDto } from './dto/create-conv.dto'
 import { UserDocument } from 'src/user/schemas/user.schema'
 import { GetUserRequest } from 'src/auth/decorators'
 
-@ApiTags('conversation')
+@ApiTags('Conversation')
 @Controller('conversations')
 export class ConversationController {
   constructor(private consversationService: ConversationService) {}
@@ -31,6 +31,22 @@ export class ConversationController {
       success: true,
       message: 'Conversation fetched successfully',
       metadata: conversations
+    }
+  }
+
+  @Get(':id')
+  async getConversationWithId(
+    @GetUserRequest() user: UserDocument,
+    @Param('id') conversationId: string
+  ) {
+    const conversation = await this.consversationService.getConversationWithId(
+      user._id,
+      conversationId
+    )
+    return {
+      success: true,
+      message: 'Conversation fetched successfully',
+      metadata: conversation
     }
   }
 

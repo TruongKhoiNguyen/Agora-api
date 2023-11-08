@@ -109,6 +109,35 @@ export class ConversationService {
     return conversations
   }
 
+  async getConversationWithId(userId: Types.ObjectId, conversationId: string) {
+    const conversation = await this.conversationModel
+      .findOne({
+        _id: new Types.ObjectId(conversationId),
+        members: { $in: [userId] }
+      })
+      .populate('members', 'firstName lastName avatar _id email')
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'sender',
+          select: 'firstName lastName avatar _id email'
+        }
+      })
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'seenUsers',
+          select: 'firstName lastName avatar _id email'
+        }
+      })
+
+    if (!conversation) {
+      throw new BadRequestException('Invalid conversation or permission denied')
+    }
+
+    return conversation
+  }
+
   async seenConversation(userId: Types.ObjectId, conversationId: string) {
     const conversation = await this.conversationModel
       .findOne({
