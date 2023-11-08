@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt'
 import { BadRequestException } from '@nestjs/common'
 import { LoginDto } from './dto'
 import { Types } from 'mongoose'
+import { PusherService } from 'src/pusher/pusher.service'
 
 describe('AuthService', () => {
   let service: AuthService
@@ -50,6 +51,8 @@ describe('AuthService', () => {
     password: '123456'
   }
 
+  const mockPusherService = {}
+
   beforeEach(async () => {
     const app: TestingModule = await Test.createTestingModule({
       providers: [
@@ -73,6 +76,10 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: mockConfigService
+        },
+        {
+          provide: PusherService,
+          useValue: mockPusherService
         }
       ]
     }).compile()

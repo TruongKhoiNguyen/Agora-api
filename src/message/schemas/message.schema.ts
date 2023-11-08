@@ -19,6 +19,9 @@ export class Message {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: User.name }] })
   seenUsers: User[]
+
+  @Prop({ isRequired: true, index: true })
+  conversationId: string
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message)

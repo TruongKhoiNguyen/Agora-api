@@ -1,4 +1,4 @@
-import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
+import { ExecutionContext, HttpException, Injectable, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { AuthGuard } from '@nestjs/passport'
 import { IS_PUBLIC_KEY } from '../decorators'
@@ -23,9 +23,18 @@ export class JwtAuthGuard extends AuthGuard(['jwt', 'jwt-refresh-token']) {
     if (err || !user || info) {
       if (info) {
         const errorMess = []
+        let isExpried = false
         info.forEach((val: any) => {
+          if (val.message === 'jwt expired') {
+            isExpried = true
+          }
           errorMess.push(val.message)
         })
+
+        if (isExpried) {
+          throw new HttpException('Token Expired', 419)
+        }
+
         throw new UnauthorizedException(errorMess.join('; '))
       } else {
         throw err || new UnauthorizedException()

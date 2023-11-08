@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import * as Pusher from 'pusher'
 
+export enum ConversationTag {
+  SEEN = 'seen',
+  NEW_MESSAGE = 'new-message'
+}
+
 @Injectable()
 export class PusherService {
   pusher: Pusher
@@ -16,7 +21,15 @@ export class PusherService {
     })
   }
 
-  public trigger(channel: string, event: string, data: any) {
+  getInstances() {
+    return this.pusher
+  }
+
+  trigger(channel: string, event: string, data: any) {
     this.pusher.trigger(channel, event, JSON.stringify(data))
+  }
+
+  authorizeChannel(socketId: string, channelName: string, data?: Pusher.PresenceChannelData) {
+    return this.pusher.authorizeChannel(socketId, channelName, data)
   }
 }

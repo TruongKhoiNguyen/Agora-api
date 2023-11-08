@@ -4,8 +4,11 @@ import {
   Body,
   Controller,
   Get,
+  HttpStatus,
   Post,
   Query,
+  Req,
+  Res,
   UsePipes,
   ValidationPipe
 } from '@nestjs/common'
@@ -110,5 +113,20 @@ export class AuthController {
     } catch (error) {
       throw new BadRequestException(error.message)
     }
+  }
+
+  @Post('pusher')
+  @Public(true)
+  async authPusher(@Req() req: any, @Res() res: any, @Body() { socket_id, channel_name }: any) {
+    const accessToken = req.headers.authorization.split(' ')[1]
+    const userId = req.headers['x-client-id']
+    const authResponse = await this.authService.authPusher(
+      socket_id,
+      channel_name,
+      accessToken,
+      userId
+    )
+
+    res.status(HttpStatus.OK).json(authResponse)
   }
 }

@@ -1,6 +1,8 @@
 import {
   Body,
   Controller,
+  Get,
+  Param,
   Post,
   UploadedFiles,
   UseInterceptors,
@@ -56,6 +58,31 @@ export class MessageController {
       success: true,
       message: 'Message sent successfully',
       metadata: newMessage
+    }
+  }
+
+  @Post('typing')
+  async typingMessage(
+    @GetUserRequest() user: UserDocument,
+    @Body() { conversationId }: { conversationId: string }
+  ) {
+    await this.messageService.typingMessage(user._id, conversationId)
+    return {
+      success: true,
+      message: 'Typingggg'
+    }
+  }
+
+  @Get(':conversationId')
+  async getMessages(
+    @GetUserRequest() user: UserDocument,
+    @Param('conversationId') conversationId: string
+  ) {
+    const messages = await this.messageService.getMessages(user._id, conversationId)
+    return {
+      success: true,
+      message: 'Messages fetched successfully',
+      metadata: messages
     }
   }
 }

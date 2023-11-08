@@ -18,6 +18,7 @@ import { ForgotPassDto, LoginDto, RefreshDto, RegisterDto, ResetPassDto } from '
 import { Key } from 'src/user/schemas/key.schema'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
+import { PusherService } from 'src/pusher/pusher.service'
 
 @Injectable()
 export class AuthService {
@@ -26,7 +27,8 @@ export class AuthService {
     @InjectModel(Key.name) private keyModel: Model<Key>,
     private jwtSercive: JwtService,
     private configService: ConfigService,
-    private mailerService: MailerService
+    private mailerService: MailerService,
+    private pusherService: PusherService
   ) {}
 
   async register(registerDto: RegisterDto): Promise<any> {
@@ -45,17 +47,17 @@ export class AuthService {
 
     if (newUser && !(this.configService.get('MAIL_DISABLE') === 'true')) {
       const hashed = await this.bcryptHash(newUser._id.toString())
+      const verifyUrl = `${this.configService.get<string>(
+        'APP_URL'
+      )}/api/v1/auth/verify?userid=${newUser._id.toString()}&token=${hashed}`
+
       await this.mailerService.sendMail({
         to: registerDto.email,
         subject: 'Welcome to Agora',
         template: './verify',
         context: {
           name: registerDto.firstName,
-          verifyUrl: `http://${this.configService.get<string>(
-            'APP_HOST'
-          )}:${this.configService.get<string>(
-            'APP_PORT'
-          )}/api/v1/auth/verify?userid=${newUser._id.toString()}&token=${hashed}`
+          verifyUrl
         }
       })
     }
@@ -204,6 +206,29 @@ export class AuthService {
       }
     })
     return result
+  }
+
+  async authPusher(socketId: string, channelName: string, accessToken: string, userId: string) {
+    const userData = await this.verifyToken(accessToken, userId)
+
+    return this.pusherService.authorizeChannel(socketId, channelName, {
+      user_id: userId,
+      user_info: {
+        email: userData.email
+      }
+    })
+  }
+
+  async verifyToken(token: string, userId: string) {
+    try {
+      const key = await this.keyModel.findOne({ user: new Types.ObjectId(userId) }).lean()
+
+      return await this.jwtSercive.verify(token, {
+        secret: key.accessSecretKey
+      })
+    } catch (error) {
+      throw new UnauthorizedException()
+    }
   }
 
   async generateToken(

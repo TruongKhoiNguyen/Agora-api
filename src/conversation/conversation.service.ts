@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose'
 import { Conversation } from './schemas/conversation.schema'
 import { UserDocument } from 'src/user/schemas/user.schema'
 import { CreateConvDto } from './dto/create-conv.dto'
-import { PusherService } from 'src/pusher/pusher.service'
+import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
 import { Message } from 'src/message/schemas/message.schema'
 
 @Injectable()
@@ -26,7 +26,8 @@ export class ConversationService {
       let newGroupConversation = await this.conversationModel.create({
         name,
         members: [...members, user._id],
-        isGroup
+        isGroup,
+        lastMessageAt: new Date()
       })
 
       newGroupConversation = await newGroupConversation.populate(
@@ -35,7 +36,6 @@ export class ConversationService {
       )
 
       newGroupConversation.members.forEach(member => {
-        console.log(member['_id'].toString())
         this.pusherService.trigger(
           member['_id'].toString(),
           'conversation:new',
@@ -65,6 +65,7 @@ export class ConversationService {
 
     let newSingleConversation = await this.conversationModel.create({
       name,
+      lastMessageAt: new Date(),
       members: [user._id, friendId]
     })
 
@@ -74,7 +75,6 @@ export class ConversationService {
     )
 
     newSingleConversation.members.forEach(member => {
-      console.log(member['_id'].toString())
       this.pusherService.trigger(
         member['_id'].toString(),
         'conversation:new',
@@ -97,13 +97,19 @@ export class ConversationService {
           select: 'firstName lastName avatar _id email'
         }
       })
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'seenUsers',
+          select: 'firstName lastName avatar _id email'
+        }
+      })
       .sort({ lastMessageAt: -1 })
 
     return conversations
   }
 
   async seenConversation(userId: Types.ObjectId, conversationId: string) {
-    console.log(conversationId)
     const conversation = await this.conversationModel
       .findOne({
         _id: new Types.ObjectId(conversationId),
@@ -128,10 +134,7 @@ export class ConversationService {
       return true
     }
 
-    console.log(lastMessage)
-
     if (lastMessage.sender['_id'].toString() === userId.toString()) {
-      console.log('sender')
       return true
     }
 
@@ -146,11 +149,10 @@ export class ConversationService {
       .populate('seenUsers', 'firstName lastName avatar _id email')
       .exec()
 
-    console.log(updatedMessage)
-
     this.pusherService.trigger(userId.toString(), 'conversation:update', {
+      tag: ConversationTag.SEEN,
       conversationId,
-      lastMessage: lastMessage
+      lastMessage: updatedMessage
     })
 
     this.pusherService.trigger(conversationId, 'message:update', {
