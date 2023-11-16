@@ -6,10 +6,18 @@ import { JwtService } from '@nestjs/jwt'
 import { MailerService } from '@nest-modules/mailer'
 import { ConfigService } from '@nestjs/config'
 import * as bcrypt from 'bcrypt'
-import { BadRequestException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+  UnauthorizedException
+} from '@nestjs/common'
 import { LoginDto } from './dto'
 import { Types } from 'mongoose'
 import { PusherService } from 'src/pusher/pusher.service'
+import { NotFoundError } from 'rxjs'
 
 describe('AuthService', () => {
   let service: AuthService
@@ -22,7 +30,8 @@ describe('AuthService', () => {
   }
   const mockKeyModel = {
     findOne: jest.fn(),
-    updateOne: jest.fn()
+    updateOne: jest.fn(),
+    deleteOne: jest.fn()
   }
   const mockJwtService = {
     verify: jest.fn(),
@@ -108,6 +117,14 @@ describe('AuthService', () => {
         ...mockUserData
       })
     })
+
+    it('email already have an account', async () => {
+      jest.spyOn(mockUserModel, 'findOne').mockReturnValue({
+        lean: jest.fn().mockResolvedValue(mockUserData)
+      })
+
+      await expect(service.register(mockUserData)).rejects.toThrow('Email already have an account')
+    })
   })
 
   let dto: LoginDto
@@ -170,6 +187,18 @@ describe('AuthService', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(BadRequestException)
       }
+    })
+
+    it('password should not match', async () => {
+      jest.spyOn(mockUserModel, 'findOne').mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue(mockUserData)
+        })
+      })
+
+      jest.spyOn(bcrypt, 'compareSync').mockReturnValue(false)
+
+      await expect(service.login(dto)).rejects.toThrow('Password is not correct')
     })
   })
 
@@ -248,6 +277,37 @@ describe('AuthService', () => {
         }
       })
     })
+
+    it('token is used', async () => {
+      jest.spyOn(mockKeyModel, 'findOne').mockResolvedValueOnce({ user: 'test' })
+      jest.spyOn(mockJwtService, 'verify').mockResolvedValue({
+        id: 'objectid',
+        email: 'test@gmail.com'
+      })
+      jest.spyOn(mockKeyModel, 'deleteOne').mockResolvedValueOnce(null)
+
+      await expect(service.refreshToken({ refreshToken: 'refresh_token' })).rejects.toThrow(
+        'Something wrong happened!! Pls login again tks!'
+      )
+    })
+
+    it('user is not registered', async () => {
+      jest.spyOn(mockKeyModel, 'findOne').mockResolvedValueOnce(null)
+      jest.spyOn(mockKeyModel, 'findOne').mockReturnValueOnce({
+        lean: jest.fn().mockResolvedValue(mockKeyTokenData)
+      })
+
+      jest.spyOn(mockJwtService, 'verify').mockResolvedValue({
+        id: 'objectid',
+        email: 'test@gmail.com'
+      })
+
+      jest.spyOn(mockUserModel, 'findOne').mockReturnValueOnce(null)
+
+      await expect(service.refreshToken({ refreshToken: 'refresh_token' })).rejects.toThrow(
+        'User not registered'
+      )
+    })
   })
 
   // test forgot password
@@ -261,6 +321,16 @@ describe('AuthService', () => {
         })
       })
       expect(await service.forgotPassword({ email: 'test@gmail.com' })).toEqual(true)
+    })
+
+    it('user not found', async () => {
+      jest.spyOn(mockUserModel, 'findOne').mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null)
+      })
+
+      await expect(service.forgotPassword({ email: 'test@gmail.com' })).rejects.toThrow(
+        'Email not registered!!!'
+      )
     })
   })
 
@@ -290,6 +360,20 @@ describe('AuthService', () => {
         acknowledged: true,
         modifiedCount: 1
       })
+    })
+
+    it('invalid or expired reset token', async () => {
+      jest.spyOn(mockJwtService, 'verify').mockResolvedValue({
+        id: '652276aa4268d57ef67b9d7b'
+      })
+
+      jest.spyOn(mockUserModel, 'findOne').mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null)
+      })
+
+      await expect(
+        service.resetPassword({ password: '123456' }, 'reset_password_token')
+      ).rejects.toThrow('Invalid or expired password reset token')
     })
   })
 
