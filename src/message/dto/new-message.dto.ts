@@ -1,8 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsNotEmpty } from 'class-validator'
 
-export class RefreshDto {
+export class NewMessageDto {
   @ApiProperty()
   @IsNotEmpty()
-  refreshToken: string
+  content: string
+
+  @ApiProperty()
+  @IsNotEmpty()
+  conversationId: string
 }
