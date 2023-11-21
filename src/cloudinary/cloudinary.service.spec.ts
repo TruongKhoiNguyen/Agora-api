@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing'
-import { CloudinaryService } from './cloudinary.service'
+import { CloudinaryService, ImageType } from './cloudinary.service'
 import { UploadApiResponse, v2 } from 'cloudinary'
 
 jest.mock('./cloudinary-response')
@@ -62,7 +62,7 @@ describe('CloudinaryService', () => {
     it('should return a Cloudinary cloud file', async () => {
       const cloudFile = await service.uploadFile(
         { path: 'path' } as Express.Multer.File,
-        'image-avt'
+        ImageType.AVATAR
       )
       expect(cloudFile).toEqual(mockResult)
     })
@@ -70,7 +70,7 @@ describe('CloudinaryService', () => {
     it('should return a Cloudinary cloud file', async () => {
       const cloudFile = await service.uploadFile(
         { path: 'path' } as Express.Multer.File,
-        'image-chat'
+        ImageType.CHAT
       )
       expect(cloudFile).toEqual(mockResult)
     })
@@ -79,7 +79,7 @@ describe('CloudinaryService', () => {
       jest.spyOn(v2.uploader, 'upload').mockResolvedValue(null)
       const cloudFile = await service.uploadFile(
         { path: 'path' } as Express.Multer.File,
-        'image-chat'
+        ImageType.CHAT
       )
       expect(cloudFile).toEqual(null)
     })
@@ -89,12 +89,15 @@ describe('CloudinaryService', () => {
     jest.spyOn(v2.uploader, 'destroy').mockResolvedValue({ result: 'ok' })
 
     it('should return a Cloudinary cloud file', async () => {
-      const response = await service.destroyFile('agora/images/avatars/public_id.jpg', 'image-avt')
+      const response = await service.destroyFile(
+        'agora/images/avatars/public_id.jpg',
+        ImageType.AVATAR
+      )
       expect(response).toMatchObject({ result: 'ok' })
     })
 
     it('should return a Cloudinary cloud file', async () => {
-      const response = await service.destroyFile('agora/images/chats/public_id.jpg', 'image-chat')
+      const response = await service.destroyFile('agora/images/chats/public_id.jpg', ImageType.CHAT)
       expect(response).toMatchObject({ result: 'ok' })
     })
   })

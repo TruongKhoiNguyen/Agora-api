@@ -9,7 +9,7 @@ import {
   UseInterceptors
 } from '@nestjs/common'
 import { UserService } from './user.service'
-import { CloudinaryService } from '../cloudinary/cloudinary.service'
+import { CloudinaryService, ImageType } from '../cloudinary/cloudinary.service'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { filterImageConfig, storageConfig } from '../configs/upload-file.config'
 import { ApiTags } from '@nestjs/swagger'
@@ -45,13 +45,13 @@ export class UserController {
     }
 
     try {
-      const cloudFile = await this.cloudinaryService.uploadFile(file, 'image-avt')
+      const cloudFile = await this.cloudinaryService.uploadFile(file, ImageType.AVATAR)
 
       if (req.user.avatar) {
-        await this.cloudinaryService.destroyFile(req.user.avatar, 'image-avt')
+        await this.cloudinaryService.destroyFile(req.user.avatar, ImageType.AVATAR)
       }
 
-      await this.userService.updateAvatar(req.user._id, cloudFile.url)
+      await this.userService.updateAvatar(req.user._id, cloudFile.secure_url)
 
       return {
         success: true,

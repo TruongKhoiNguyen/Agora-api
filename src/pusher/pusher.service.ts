@@ -4,7 +4,14 @@ import * as Pusher from 'pusher'
 
 export enum ConversationTag {
   SEEN = 'seen',
-  NEW_MESSAGE = 'new-message'
+  NEW_MESSAGE = 'new-message',
+  UPDATE_THUMB = 'update-thumb',
+  UPDATE_INFO = 'update-info',
+  ADD_MEMBERS = 'add-members',
+  REMOVE_MEMBERS = 'remove-members',
+  LEAVE_CONVERSATION = 'leave-conversation',
+  IS_LEAVE_CONVERSATION = 'is-leave-conversation',
+  UPDATE_ADMINS = 'update-admins'
 }
 
 @Injectable()
