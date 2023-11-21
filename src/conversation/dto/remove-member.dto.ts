@@ -1,8 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsNotEmpty } from 'class-validator'
+import { IsNotEmpty, Validate } from 'class-validator'
+import { IsObjectId } from 'src/decorators/isObjectId.validate'
 
 export class RemoveMemberDto {
   @ApiProperty()
   @IsNotEmpty()
+  @Validate(IsObjectId)
   memberId: string
 }

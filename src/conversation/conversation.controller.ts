@@ -25,6 +25,7 @@ import {
   RemoveMemberDto,
   UpdateInfoConvDto
 } from './dto'
+import { ConversationIdParam } from './params/conversationId.param'
 
 @ApiTags('Conversation')
 @Controller('conversations')
@@ -55,14 +56,15 @@ export class ConversationController {
     }
   }
 
-  @Get(':id')
+  @Get(':conversationId')
+  @UsePipes(ValidationPipe)
   async getConversationWithId(
     @GetUserRequest() user: UserDocument,
-    @Param('id') conversationId: string
+    @Param() convIdParam: ConversationIdParam
   ) {
     const conversation = await this.consversationService.getConversationWithId(
       user._id,
-      conversationId
+      convIdParam.conversationId
     )
     return {
       success: true,
@@ -72,11 +74,12 @@ export class ConversationController {
   }
 
   @Post('seen/:conversationId')
+  @UsePipes(ValidationPipe)
   async seenConversation(
     @GetUserRequest() user: UserDocument,
-    @Param('conversationId') conversationId: string
+    @Param() convIdParam: ConversationIdParam
   ) {
-    await this.consversationService.seenConversation(user._id, conversationId)
+    await this.consversationService.seenConversation(user._id, convIdParam.conversationId)
     return {
       success: true,
       message: 'Conversation seen'
@@ -90,8 +93,9 @@ export class ConversationController {
       fileFilter: filterImageConfig()
     })
   )
+  @UsePipes(ValidationPipe)
   async uploadThumb(
-    @Param('conversationId') conversationId: string,
+    @Param() convIdParam: ConversationIdParam,
     @Req() req: any,
     @UploadedFile() file: Express.Multer.File
   ): Promise<any> {
@@ -103,7 +107,7 @@ export class ConversationController {
       throw new BadRequestException('File is required')
     }
 
-    await this.consversationService.updateThumb(conversationId, req.user._id, file)
+    await this.consversationService.updateThumb(convIdParam.conversationId, req.user._id, file)
 
     return {
       success: true,
@@ -112,12 +116,17 @@ export class ConversationController {
   }
 
   @Patch('update-info/:conversationId')
+  @UsePipes(ValidationPipe)
   async updateInfo(
-    @Param('conversationId') conversationId: string,
+    @Param() convIdParam: ConversationIdParam,
     @GetUserRequest() user: UserDocument,
     @Body() updateInfoConvDto: UpdateInfoConvDto
   ) {
-    await this.consversationService.updateInfo(conversationId, user._id, updateInfoConvDto)
+    await this.consversationService.updateInfo(
+      convIdParam.conversationId,
+      user._id,
+      updateInfoConvDto
+    )
     return {
       success: true,
       message: 'Update info successfully'
@@ -125,12 +134,17 @@ export class ConversationController {
   }
 
   @Patch('add-members/:conversationId')
+  @UsePipes(ValidationPipe)
   async addMembers(
-    @Param('conversationId') conversationId: string,
+    @Param() convIdParam: ConversationIdParam,
     @GetUserRequest() user: UserDocument,
     @Body() addMembersDto: AddMembersDto
   ) {
-    await this.consversationService.addMembers(conversationId, user._id, addMembersDto.members)
+    await this.consversationService.addMembers(
+      convIdParam.conversationId,
+      user._id,
+      addMembersDto.members
+    )
     return {
       success: true,
       message: 'Add members successfully'
@@ -138,13 +152,14 @@ export class ConversationController {
   }
 
   @Patch('remove-member/:conversationId')
+  @UsePipes(ValidationPipe)
   async removeMembers(
-    @Param('conversationId') conversationId: string,
+    @Param() convIdParam: ConversationIdParam,
     @GetUserRequest() user: UserDocument,
     @Body() removeMembersDto: RemoveMemberDto
   ) {
     await this.consversationService.removeMembers(
-      conversationId,
+      convIdParam.conversationId,
       user._id,
       removeMembersDto.memberId
     )
@@ -155,11 +170,12 @@ export class ConversationController {
   }
 
   @Patch('leave-conversation/:conversationId')
+  @UsePipes(ValidationPipe)
   async leaveConversation(
-    @Param('conversationId') conversationId: string,
+    @Param() convIdParam: ConversationIdParam,
     @GetUserRequest() user: UserDocument
   ) {
-    await this.consversationService.leaveConversation(conversationId, user._id)
+    await this.consversationService.leaveConversation(convIdParam.conversationId, user._id)
     return {
       success: true,
       message: 'Leave conversation successfully'
@@ -167,15 +183,51 @@ export class ConversationController {
   }
 
   @Patch('add-admin/:conversationId')
+  @UsePipes(ValidationPipe)
   async addAdmins(
-    @Param('conversationId') conversationId: string,
+    @Param() convIdParam: ConversationIdParam,
     @GetUserRequest() user: UserDocument,
     @Body() addAdminsDto: AddAdminDto
   ) {
-    await this.consversationService.addAdmins(conversationId, user._id, addAdminsDto.memberId)
+    await this.consversationService.addAdmins(
+      convIdParam.conversationId,
+      user._id,
+      addAdminsDto.memberId
+    )
     return {
       success: true,
       message: 'Add admins successfully'
+    }
+  }
+
+  @Get('images/:conversationId')
+  @UsePipes(ValidationPipe)
+  async getAllImages(
+    @Param() convIdParam: ConversationIdParam,
+    @GetUserRequest() user: UserDocument
+  ) {
+    const images = await this.consversationService.getAllImages(
+      convIdParam.conversationId,
+      user._id
+    )
+    return {
+      success: true,
+      message: 'Get all images successfully',
+      metadata: images
+    }
+  }
+
+  @Get('links/:conversationId')
+  @UsePipes(ValidationPipe)
+  async getAllLinks(
+    @Param() convIdParam: ConversationIdParam,
+    @GetUserRequest() user: UserDocument
+  ) {
+    const links = await this.consversationService.getAllLinks(convIdParam.conversationId, user._id)
+    return {
+      success: true,
+      message: 'Get all links successfully',
+      metadata: links
     }
   }
 }

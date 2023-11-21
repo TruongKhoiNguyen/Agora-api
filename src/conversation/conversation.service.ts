@@ -431,4 +431,78 @@ export class ConversationService {
       })
     })
   }
+
+  async getAllImages(conversationId: string, userId: Types.ObjectId) {
+    const conversation = await this.conversationModel
+      .findOne({
+        _id: new Types.ObjectId(conversationId),
+        members: { $in: [userId] }
+      })
+      .populate('messages', '_id sender content images createdAt')
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'sender',
+          select: 'firstName lastName avatar _id'
+        }
+      })
+
+    if (!conversation) {
+      throw new BadRequestException('Invalid conversation or permission denied')
+    }
+
+    const images = conversation.messages.reduce((prev, message) => {
+      if (message.images.length > 0) {
+        message.images.forEach(image => {
+          prev.push({
+            messageId: message['_id'].toString(),
+            sender: message.sender,
+            image,
+            createdAt: message['createdAt']
+          })
+        })
+      }
+      return prev
+    }, [])
+
+    return images
+  }
+
+  async getAllLinks(conversationId: string, userId: Types.ObjectId) {
+    const regex = /(https?:\/\/[^\s]+)/g
+    const conversation = await this.conversationModel
+      .findOne({
+        _id: new Types.ObjectId(conversationId),
+        members: { $in: [userId] }
+      })
+      .populate('messages', '_id sender content createdAt')
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'sender',
+          select: 'firstName lastName avatar _id'
+        }
+      })
+
+    if (!conversation) {
+      throw new BadRequestException('Invalid conversation or permission denied')
+    }
+
+    const links = conversation.messages.reduce((prev, message) => {
+      const matches = message.content.match(regex)
+      if (matches) {
+        matches.forEach(match => {
+          prev.push({
+            messageId: message['_id'].toString(),
+            sender: message.sender,
+            link: match,
+            createdAt: message['createdAt']
+          })
+        })
+      }
+      return prev
+    }, [])
+
+    return links
+  }
 }

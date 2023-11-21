@@ -2,10 +2,7 @@ import { ApiProperty } from '@nestjs/swagger'
 import { IsNotEmpty, Validate } from 'class-validator'
 import { IsObjectId } from 'src/decorators/isObjectId.validate'
 
-export class NewMessageDto {
-  @ApiProperty()
-  content: string
-
+export class ConversationIdParam {
   @ApiProperty()
   @IsNotEmpty()
   @Validate(IsObjectId)

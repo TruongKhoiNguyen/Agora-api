@@ -2,7 +2,7 @@ import { NewMessageDto } from './dto/new-message.dto'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Message } from './schemas/message.schema'
-import { Model, Types } from 'mongoose'
+import mongoose, { Model, Types } from 'mongoose'
 import { Conversation } from 'src/conversation/schemas/conversation.schema'
 import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
 
@@ -60,9 +60,61 @@ export class MessageService {
     return newMessage
   }
 
-  async getMessages(userId: Types.ObjectId, conversationId: string) {
+  async getAllMessages(userId: Types.ObjectId, conversationId: string) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      members: { $in: [userId] }
+    })
+
+    if (!conversation) {
+      throw new BadRequestException('Conversation not found or you are not a member')
+    }
+
     const messages = await this.messageModel
-      .find({ conversationId })
+      .find({
+        conversationId,
+        _id: {
+          $gt: new Types.ObjectId('655b1bc30255a0bb1d89b05f')
+        }
+      })
+      .populate('sender', 'firstName lastName avatar _id email')
+      .populate('seenUsers', 'firstName lastName avatar _id email')
+
+    return messages
+  }
+
+  async getMessages(
+    userId: Types.ObjectId,
+    conversationId: string,
+    next: string,
+    limit: number = 10
+  ) {
+    if (next && !mongoose.Types.ObjectId.isValid(next)) {
+      throw new BadRequestException('Invalid objectId')
+    }
+
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      members: { $in: [userId] }
+    })
+
+    if (!conversation) {
+      throw new BadRequestException('Conversation not found or you are not a member')
+    }
+
+    const filter = next
+      ? {
+          conversationId,
+          _id: {
+            $lt: new Types.ObjectId(next)
+          }
+        }
+      : { conversationId }
+
+    const messages = await this.messageModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
       .populate('sender', 'firstName lastName avatar _id email')
       .populate('seenUsers', 'firstName lastName avatar _id email')
 
