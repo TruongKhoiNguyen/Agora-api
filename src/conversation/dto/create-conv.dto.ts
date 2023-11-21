@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsNotEmpty, MaxLength } from 'class-validator'
+import { IsArray, IsNotEmpty, MaxLength, Validate } from 'class-validator'
+import { IsObjectId } from 'src/decorators/isObjectId.validate'
 
 export class CreateConvDto {
   @ApiProperty()
@@ -13,5 +14,7 @@ export class CreateConvDto {
 
   @ApiProperty()
   @IsNotEmpty()
+  @IsArray()
+  @Validate(IsObjectId, { each: true })
   members: string[]
 }

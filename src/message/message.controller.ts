@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UploadedFiles,
   UseInterceptors,
@@ -20,6 +21,7 @@ import { FilesInterceptor } from '@nestjs/platform-express'
 import { filterImageConfig, storageConfig } from 'src/configs/upload-file.config'
 import { CloudinaryService, ImageType } from 'src/cloudinary/cloudinary.service'
 import { CloudinaryResponse } from 'src/cloudinary/cloudinary-response'
+import { ConversationIdParam } from 'src/conversation/params/conversationId.param'
 
 @ApiTags('Message')
 @Controller('messages')
@@ -81,12 +83,34 @@ export class MessageController {
     }
   }
 
-  @Get(':conversationId')
-  async getMessages(
+  @Get('all/:conversationId')
+  @UsePipes(ValidationPipe)
+  async getAllMessages(
     @GetUserRequest() user: UserDocument,
-    @Param('conversationId') conversationId: string
+    @Param() convIdParam: ConversationIdParam
   ) {
-    const messages = await this.messageService.getMessages(user._id, conversationId)
+    const messages = await this.messageService.getAllMessages(user._id, convIdParam.conversationId)
+    return {
+      success: true,
+      message: 'Messages fetched successfully',
+      metadata: messages
+    }
+  }
+
+  @Get(':conversationId')
+  @UsePipes(ValidationPipe)
+  async getMessages(
+    @Query('next') next: string,
+    @Query('limit') limit: string,
+    @GetUserRequest() user: UserDocument,
+    @Param() convIdParam: ConversationIdParam
+  ) {
+    const messages = await this.messageService.getMessages(
+      user._id,
+      convIdParam.conversationId,
+      next,
+      limit ? parseInt(limit) : 10
+    )
     return {
       success: true,
       message: 'Messages fetched successfully',
