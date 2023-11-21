@@ -1,11 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsNotEmpty } from 'class-validator'
 
-export class NewMessageDto {
-  @ApiProperty()
-  content: string
-
+export class AddAdminDto {
   @ApiProperty()
   @IsNotEmpty()
-  conversationId: string
+  memberId: string
 }

@@ -5,19 +5,16 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common'
 import { v2 } from 'cloudinary'
 import { CloudinaryResponse } from './cloudinary-response'
 
+export enum ImageType {
+  AVATAR = 'avatars',
+  CHAT = 'chats',
+  THUMB = 'thumbs'
+}
+
 @Injectable()
 export class CloudinaryService {
-  async uploadFile(
-    file: Express.Multer.File,
-    type: 'image-avt' | 'image-chat'
-  ): Promise<CloudinaryResponse> {
-    let folderPath = 'agora/images/avatars/'
-
-    if (type === 'image-avt') {
-      folderPath = 'agora/images/avatars/'
-    } else {
-      folderPath = 'agora/images/chats/'
-    }
+  async uploadFile(file: Express.Multer.File, type: ImageType): Promise<CloudinaryResponse> {
+    const folderPath = `agora/images/${type}/`
 
     try {
       const cloudFile = await v2.uploader.upload(file.path, {
@@ -33,15 +30,10 @@ export class CloudinaryService {
     }
   }
 
-  async destroyFile(url: string, type: 'image-avt' | 'image-chat'): Promise<CloudinaryResponse> {
+  async destroyFile(url: string, type: ImageType): Promise<CloudinaryResponse> {
     // agora/images/avatars/ --> path in cloudiary folder
-    let publish_id: string
-
-    if (type === 'image-avt') {
-      publish_id = 'agora/images/avatars/' + url.split('agora/images/avatars/')[1].split('.')[0]
-    } else {
-      publish_id = 'agora/images/chats/' + url.split('agora/images/chats/')[1].split('.')[0]
-    }
+    const publish_id: string =
+      `agora/images/${type}/` + url.split(`agora/images/${type}/`)[1].split('.')[0]
 
     try {
       const response = await v2.uploader.destroy(publish_id)

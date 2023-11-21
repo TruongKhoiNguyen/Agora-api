@@ -10,6 +10,9 @@ export type ConversationDocument = HydratedDocument<Conversation>
 })
 export class Conversation {
   @Prop({ type: [{ type: Types.ObjectId, ref: User.name }] })
+  admins: User[]
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: User.name }] })
   members: User[]
 
   @Prop({ type: [{ type: Types.ObjectId, ref: Message.name }] })
@@ -25,7 +28,7 @@ export class Conversation {
   lastMessageAt: Date
 
   @Prop({ isRequired: false })
-  image: string
+  thumb: string
 }
 
 export const ConversationSchema = SchemaFactory.createForClass(Conversation)

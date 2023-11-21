@@ -3,16 +3,18 @@ import { Model, Types } from 'mongoose'
 import { InjectModel } from '@nestjs/mongoose'
 import { Conversation } from './schemas/conversation.schema'
 import { UserDocument } from 'src/user/schemas/user.schema'
-import { CreateConvDto } from './dto/create-conv.dto'
 import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
 import { Message } from 'src/message/schemas/message.schema'
+import { CloudinaryService, ImageType } from 'src/cloudinary/cloudinary.service'
+import { CreateConvDto, UpdateInfoConvDto } from './dto'
 
 @Injectable()
 export class ConversationService {
   constructor(
     @InjectModel(Conversation.name) private conversationModel: Model<Conversation>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
-    private pusherService: PusherService
+    private pusherService: PusherService,
+    private cloudinaryService: CloudinaryService
   ) {}
 
   async createConversation(user: UserDocument, createConvDto: CreateConvDto) {
@@ -25,6 +27,7 @@ export class ConversationService {
     if (isGroup) {
       let newGroupConversation = await this.conversationModel.create({
         name,
+        admins: [user._id],
         members: [...members, user._id],
         isGroup,
         lastMessageAt: new Date()
@@ -65,6 +68,7 @@ export class ConversationService {
 
     let newSingleConversation = await this.conversationModel.create({
       name,
+      admins: [user._id, friendId],
       lastMessageAt: new Date(),
       members: [user._id, friendId]
     })
@@ -189,5 +193,242 @@ export class ConversationService {
     })
 
     return true
+  }
+
+  async updateThumb(conversationId: string, userId: Types.ObjectId, file: Express.Multer.File) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      admins: { $in: [userId] }
+    })
+
+    if (!conversation) {
+      throw new BadRequestException('Invalid conversation or permission denied')
+    }
+
+    if (!conversation.isGroup) {
+      throw new BadRequestException('Invalid conversation')
+    }
+
+    const promises = []
+
+    promises.push(this.cloudinaryService.uploadFile(file, ImageType.THUMB))
+
+    if (conversation.thumb) {
+      promises.push(this.cloudinaryService.destroyFile(conversation.thumb, ImageType.THUMB))
+    }
+
+    const result = await Promise.all(promises)
+
+    await conversation.updateOne({
+      thumb: result[0].secure_url
+    })
+
+    conversation.members.forEach(member => {
+      this.pusherService.trigger(member.toString(), 'conversation:update', {
+        tag: ConversationTag.UPDATE_INFO,
+        conversationId,
+        name: result[0].secure_url
+      })
+    })
+  }
+
+  async updateInfo(
+    conversationId: string,
+    userId: Types.ObjectId,
+    updateInfoConvDto: UpdateInfoConvDto
+  ) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      admins: { $in: [userId] }
+    })
+
+    if (!conversation) {
+      throw new BadRequestException('Invalid conversation or permission denied')
+    }
+
+    if (!conversation.isGroup) {
+      throw new BadRequestException('Invalid conversation')
+    }
+
+    await conversation.updateOne({
+      name: updateInfoConvDto.name
+    })
+
+    conversation.members.forEach(member => {
+      this.pusherService.trigger(member.toString(), 'conversation:update', {
+        tag: ConversationTag.UPDATE_INFO,
+        conversationId,
+        updateInfo: updateInfoConvDto
+      })
+    })
+  }
+
+  async addMembers(conversationId: string, userId: Types.ObjectId, memberIds: string[]) {
+    memberIds.forEach(memberId => {
+      if (userId.toString() === memberId.toString()) {
+        throw new BadRequestException('Invalid input')
+      }
+    })
+
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      admins: { $in: [userId] }
+    })
+
+    if (!conversation) {
+      throw new BadRequestException('Invalid conversation or permission denied')
+    }
+
+    if (!conversation.isGroup) {
+      throw new BadRequestException('Invalid conversation')
+    }
+
+    const newMembers = [
+      ...new Set([...conversation.members.map(member => member.toString()), ...memberIds])
+    ]
+
+    await conversation.updateOne({
+      members: newMembers.map(member => new Types.ObjectId(member))
+    })
+
+    newMembers.forEach(member => {
+      this.pusherService.trigger(member, 'conversation:update', {
+        tag: ConversationTag.ADD_MEMBERS,
+        conversationId,
+        members: newMembers.map(member => new Types.ObjectId(member))
+      })
+    })
+  }
+
+  async removeMembers(conversationId: string, userId: Types.ObjectId, memberId: string) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      admins: { $in: [userId] },
+      members: { $in: [new Types.ObjectId(memberId)] }
+    })
+
+    if (!conversation) {
+      throw new BadRequestException('Invalid conversation or permission denied')
+    }
+
+    if (!conversation.isGroup) {
+      throw new BadRequestException('Invalid conversation')
+    }
+
+    if (conversation.admins.some(admin => admin.toString() === memberId.toString())) {
+      throw new BadRequestException('Cannot remove admin')
+    }
+
+    const newMembers = conversation.members.filter(member => {
+      if (!(member.toString() !== memberId)) {
+        this.pusherService.trigger(member.toString(), 'conversation:update', {
+          tag: ConversationTag.IS_LEAVE_CONVERSATION,
+          conversationId
+        })
+      }
+
+      return member.toString() !== memberId
+    })
+
+    await conversation.updateOne({
+      members: newMembers
+    })
+
+    newMembers.forEach(member => {
+      this.pusherService.trigger(member.toString(), 'conversation:update', {
+        tag: ConversationTag.REMOVE_MEMBERS,
+        conversationId,
+        members: newMembers
+      })
+    })
+  }
+
+  async leaveConversation(conversationId: string, userId: Types.ObjectId) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      members: { $in: [userId] }
+    })
+
+    if (!conversation) {
+      throw new BadRequestException('Invalid conversation')
+    }
+
+    if (!conversation.isGroup) {
+      throw new BadRequestException('Invalid conversation')
+    }
+
+    if (
+      conversation.admins.length === 1 &&
+      conversation.admins[0].toString() === userId.toString()
+    ) {
+      throw new BadRequestException('Cannot leave conversation')
+    }
+
+    const newMembers = conversation.members.filter(member => {
+      if (!(member.toString() !== userId.toString())) {
+        this.pusherService.trigger(member.toString(), 'conversation:update', {
+          tag: ConversationTag.IS_LEAVE_CONVERSATION,
+          conversationId
+        })
+      }
+
+      return member.toString() !== userId.toString()
+    })
+
+    await conversation.updateOne({
+      members: newMembers,
+      $pull: {
+        admins: userId
+      }
+    })
+
+    newMembers.forEach(member => {
+      this.pusherService.trigger(member.toString(), 'conversation:update', {
+        tag: ConversationTag.LEAVE_CONVERSATION,
+        conversationId,
+        members: newMembers
+      })
+    })
+  }
+
+  async addAdmins(conversationId: string, userId: Types.ObjectId, adminId: string) {
+    if (userId.toString() === adminId.toString()) {
+      throw new BadRequestException('Cannot add yourself')
+    }
+
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      admins: { $in: [userId] },
+      members: { $in: [new Types.ObjectId(adminId)] }
+    })
+
+    if (!conversation) {
+      throw new BadRequestException('Invalid conversation or permission denied')
+    }
+
+    if (!conversation.isGroup) {
+      throw new BadRequestException('Invalid conversation')
+    }
+
+    if (conversation.admins.some(admin => admin.toString() === adminId.toString())) {
+      throw new BadRequestException('User is already an admin')
+    }
+
+    await conversation.updateOne(
+      {
+        $push: {
+          admins: new Types.ObjectId(adminId)
+        }
+      },
+      { new: true }
+    )
+
+    conversation.members.forEach(member => {
+      this.pusherService.trigger(member.toString(), 'conversation:update', {
+        tag: ConversationTag.UPDATE_ADMINS,
+        conversationId,
+        admins: [...conversation.admins, new Types.ObjectId(adminId)]
+      })
+    })
   }
 }

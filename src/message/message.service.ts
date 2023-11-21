@@ -25,10 +25,14 @@ export class MessageService {
       throw new BadRequestException('Conversation not found')
     }
 
+    if (!images && !content) {
+      throw new BadRequestException('Content or images is required')
+    }
+
     let newMessage = await this.messageModel.create({
       content,
       sender: userId,
-      images: images || null,
+      images: images || [],
       conversationId
     })
 

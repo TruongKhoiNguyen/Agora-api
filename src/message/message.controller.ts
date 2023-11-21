@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Post,
+  Req,
   UploadedFiles,
   UseInterceptors,
   UsePipes,
@@ -16,7 +18,7 @@ import { NewMessageDto } from './dto/new-message.dto'
 import { MessageService } from './message.service'
 import { FilesInterceptor } from '@nestjs/platform-express'
 import { filterImageConfig, storageConfig } from 'src/configs/upload-file.config'
-import { CloudinaryService } from 'src/cloudinary/cloudinary.service'
+import { CloudinaryService, ImageType } from 'src/cloudinary/cloudinary.service'
 import { CloudinaryResponse } from 'src/cloudinary/cloudinary-response'
 
 @ApiTags('Message')
@@ -32,19 +34,24 @@ export class MessageController {
   @UseInterceptors(
     FilesInterceptor('chats', 5, {
       storage: storageConfig('chats'),
-      fileFilter: filterImageConfig()
+      fileFilter: filterImageConfig(1024 * 1024 * 20)
     })
   )
   async newMessage(
+    @Req() req: any,
     @GetUserRequest() user: UserDocument,
     @Body() newMessageDto: NewMessageDto,
     @UploadedFiles() files: Array<Express.Multer.File>
   ) {
+    if (req.fileValidationError) {
+      throw new BadRequestException(req.fileValidationError)
+    }
+
     let newMessage
+
     if (files) {
-      console.log(files)
       const uploadFilePromises = files.map(file => {
-        return this.cloudinaryService.uploadFile(file, 'image-chat')
+        return this.cloudinaryService.uploadFile(file, ImageType.CHAT)
       })
 
       const cloudImages = await Promise.all(uploadFilePromises)
@@ -54,6 +61,7 @@ export class MessageController {
     } else {
       newMessage = await this.messageService.createMessage(user._id, newMessageDto)
     }
+
     return {
       success: true,
       message: 'Message sent successfully',
