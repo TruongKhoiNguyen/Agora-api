@@ -14,6 +14,13 @@ export enum ConversationTag {
   UPDATE_ADMINS = 'update-admins'
 }
 
+export enum FriendTag {
+  ADD_FRIEND = 'add-friend',
+  ACCEPT_FRIEND_REQUEST = 'accept-friend-request',
+  REMOVE_FRIEND = 'remove-friend',
+  CANCEL_FRIEND_REQUEST = 'cancel-friend-request'
+}
+
 @Injectable()
 export class PusherService {
   pusher: Pusher
