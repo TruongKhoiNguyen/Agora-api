@@ -42,6 +42,7 @@ export class AuthService {
 
     const newUser = await this.userModel.create({
       ...registerDto,
+      displayName: `${registerDto.firstName} ${registerDto.lastName}`,
       password: hashPassword
     })
 

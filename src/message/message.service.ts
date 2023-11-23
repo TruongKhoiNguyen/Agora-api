@@ -5,6 +5,7 @@ import { Message } from './schemas/message.schema'
 import mongoose, { Model, Types } from 'mongoose'
 import { Conversation } from 'src/conversation/schemas/conversation.schema'
 import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
+import { BASIC_INFO_SELECT } from 'src/user/schemas/user.schema'
 
 @Injectable()
 export class MessageService {
@@ -36,7 +37,7 @@ export class MessageService {
       conversationId
     })
 
-    newMessage = await newMessage.populate('sender', 'firstName lastName avatar _id email')
+    newMessage = await newMessage.populate('sender', BASIC_INFO_SELECT)
 
     this.pusherService.trigger(conversationId, 'message:new', newMessage)
 
@@ -77,8 +78,8 @@ export class MessageService {
           $gt: new Types.ObjectId('655b1bc30255a0bb1d89b05f')
         }
       })
-      .populate('sender', 'firstName lastName avatar _id email')
-      .populate('seenUsers', 'firstName lastName avatar _id email')
+      .populate('sender', BASIC_INFO_SELECT)
+      .populate('seenUsers', BASIC_INFO_SELECT)
 
     return messages
   }
@@ -115,8 +116,8 @@ export class MessageService {
       .find(filter)
       .sort({ createdAt: -1 })
       .limit(limit)
-      .populate('sender', 'firstName lastName avatar _id email')
-      .populate('seenUsers', 'firstName lastName avatar _id email')
+      .populate('sender', BASIC_INFO_SELECT)
+      .populate('seenUsers', BASIC_INFO_SELECT)
 
     return messages
   }

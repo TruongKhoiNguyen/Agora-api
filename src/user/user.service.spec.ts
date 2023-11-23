@@ -3,6 +3,7 @@ import { UserService } from './user.service'
 import { getModelToken } from '@nestjs/mongoose'
 import { User } from './schemas/user.schema'
 import { Types } from 'mongoose'
+import { PusherService } from 'src/pusher/pusher.service'
 describe('UserService', () => {
   let service: UserService
   const mockUsersData = [
@@ -21,6 +22,8 @@ describe('UserService', () => {
     updateOne: jest.fn()
   }
 
+  const mockPusherService = {}
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -28,6 +31,10 @@ describe('UserService', () => {
         {
           provide: getModelToken(User.name),
           useValue: mockUserModel
+        },
+        {
+          provide: PusherService,
+          useValue: mockPusherService
         }
       ]
     }).compile()

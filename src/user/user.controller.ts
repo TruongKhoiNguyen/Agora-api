@@ -1,18 +1,26 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   InternalServerErrorException,
   Post,
+  Query,
   Req,
   UploadedFile,
-  UseInterceptors
+  UseInterceptors,
+  UsePipes,
+  ValidationPipe
 } from '@nestjs/common'
 import { UserService } from './user.service'
 import { CloudinaryService, ImageType } from '../cloudinary/cloudinary.service'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { filterImageConfig, storageConfig } from '../configs/upload-file.config'
 import { ApiTags } from '@nestjs/swagger'
+import { GetUserRequest, Public } from 'src/auth/decorators'
+import { UserDocument } from './schemas/user.schema'
+import { AddFrienDto } from './dto/add-friend.dto'
+import { FriendIdDto } from './dto/friend-id.dto'
 
 @ApiTags('User')
 @Controller('users')
@@ -26,6 +34,27 @@ export class UserController {
   @Get()
   async getAllUser(): Promise<any> {
     return await this.userService.getAllUser()
+  }
+
+  @Get('me')
+  async getCurrUser(@GetUserRequest() user: UserDocument): Promise<any> {
+    const userData = await this.userService.getCurrUser(user._id)
+
+    return {
+      success: true,
+      message: 'Get user successfully',
+      metadata: userData
+    }
+  }
+
+  @Get('search')
+  @Public(true)
+  async search(@Query('keyword') query: string) {
+    return {
+      success: true,
+      message: 'Get user successfully',
+      metadata: await this.userService.search(query)
+    }
   }
 
   @Post('upload-avt')
@@ -59,6 +88,64 @@ export class UserController {
       }
     } catch (err) {
       throw new InternalServerErrorException('Error when upload file')
+    }
+  }
+
+  @Post('add-friend')
+  @UsePipes(ValidationPipe)
+  async addFriend(@GetUserRequest() user: UserDocument, @Body() addFriendto: AddFrienDto) {
+    await this.userService.addFriend(user, addFriendto)
+
+    return {
+      success: true,
+      message: 'Add friend successfully'
+    }
+  }
+
+  @Post('accept-friend')
+  @UsePipes(ValidationPipe)
+  async acceptFriend(@GetUserRequest() user: UserDocument, @Body() friendIdDto: FriendIdDto) {
+    await this.userService.acceptFriend(user, friendIdDto)
+
+    return {
+      success: true,
+      message: 'Accept friend successfully'
+    }
+  }
+
+  @Post('reject-friend')
+  @UsePipes(ValidationPipe)
+  async rejectFriend(@GetUserRequest() user: UserDocument, @Body() friendIdDto: FriendIdDto) {
+    await this.userService.rejectFriendRequest(user, friendIdDto)
+
+    return {
+      success: true,
+      message: 'Reject friend successfully'
+    }
+  }
+
+  @Post('cancel-friend')
+  @UsePipes(ValidationPipe)
+  async cancelFriendRequest(
+    @GetUserRequest() user: UserDocument,
+    @Body() friendIdDto: FriendIdDto
+  ) {
+    await this.userService.cancelFriendRequest(user, friendIdDto)
+
+    return {
+      success: true,
+      message: 'Reject friend successfully'
+    }
+  }
+
+  @Post('remove-friend')
+  @UsePipes(ValidationPipe)
+  async removeFriend(@GetUserRequest() user: UserDocument, @Body() friendIdDto: FriendIdDto) {
+    await this.userService.removeFriend(user, friendIdDto)
+
+    return {
+      success: true,
+      message: 'remove friend successfully'
     }
   }
 }

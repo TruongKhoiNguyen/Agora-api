@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { Model, Types } from 'mongoose'
 import { InjectModel } from '@nestjs/mongoose'
 import { Conversation } from './schemas/conversation.schema'
-import { UserDocument } from 'src/user/schemas/user.schema'
+import { BASIC_INFO_SELECT, UserDocument } from 'src/user/schemas/user.schema'
 import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
 import { Message } from 'src/message/schemas/message.schema'
 import { CloudinaryService, ImageType } from 'src/cloudinary/cloudinary.service'
@@ -33,10 +33,7 @@ export class ConversationService {
         lastMessageAt: new Date()
       })
 
-      newGroupConversation = await newGroupConversation.populate(
-        'members',
-        'firstName lastName avatar _id email'
-      )
+      newGroupConversation = await newGroupConversation.populate('members', BASIC_INFO_SELECT)
 
       newGroupConversation.members.forEach(member => {
         this.pusherService.trigger(
@@ -73,10 +70,7 @@ export class ConversationService {
       members: [user._id, friendId]
     })
 
-    newSingleConversation = await newSingleConversation.populate(
-      'members',
-      'firstName lastName avatar _id email'
-    )
+    newSingleConversation = await newSingleConversation.populate('members', BASIC_INFO_SELECT)
 
     newSingleConversation.members.forEach(member => {
       this.pusherService.trigger(
@@ -93,19 +87,19 @@ export class ConversationService {
     const conversations = await this.conversationModel
       .find({ members: { $in: [userId] } })
       .lean()
-      .populate('members', 'firstName lastName avatar _id email')
+      .populate('members', BASIC_INFO_SELECT)
       .populate({
         path: 'messages',
         populate: {
           path: 'sender',
-          select: 'firstName lastName avatar _id email'
+          select: BASIC_INFO_SELECT
         }
       })
       .populate({
         path: 'messages',
         populate: {
           path: 'seenUsers',
-          select: 'firstName lastName avatar _id email'
+          select: BASIC_INFO_SELECT
         }
       })
       .sort({ lastMessageAt: -1 })
@@ -119,19 +113,19 @@ export class ConversationService {
         _id: new Types.ObjectId(conversationId),
         members: { $in: [userId] }
       })
-      .populate('members', 'firstName lastName avatar _id email')
+      .populate('members', BASIC_INFO_SELECT)
       .populate({
         path: 'messages',
         populate: {
           path: 'sender',
-          select: 'firstName lastName avatar _id email'
+          select: BASIC_INFO_SELECT
         }
       })
       .populate({
         path: 'messages',
         populate: {
           path: 'seenUsers',
-          select: 'firstName lastName avatar _id email'
+          select: BASIC_INFO_SELECT
         }
       })
 
@@ -148,12 +142,12 @@ export class ConversationService {
         _id: new Types.ObjectId(conversationId),
         members: { $in: [userId] }
       })
-      .populate('members', 'firstName lastName avatar _id email')
+      .populate('members', BASIC_INFO_SELECT)
       .populate({
         path: 'messages',
         populate: {
           path: 'sender',
-          select: 'firstName lastName avatar _id email'
+          select: BASIC_INFO_SELECT
         }
       })
 
@@ -178,8 +172,8 @@ export class ConversationService {
 
     const updatedMessage = await this.messageModel
       .findOneAndUpdate({ _id: lastMessage['id'] }, { $push: { seenUsers: userId } }, { new: true })
-      .populate('sender', 'firstName lastName avatar _id email')
-      .populate('seenUsers', 'firstName lastName avatar _id email')
+      .populate('sender', BASIC_INFO_SELECT)
+      .populate('seenUsers', BASIC_INFO_SELECT)
       .exec()
 
     this.pusherService.trigger(userId.toString(), 'conversation:update', {
@@ -443,7 +437,7 @@ export class ConversationService {
         path: 'messages',
         populate: {
           path: 'sender',
-          select: 'firstName lastName avatar _id'
+          select: BASIC_INFO_SELECT
         }
       })
 
@@ -480,7 +474,7 @@ export class ConversationService {
         path: 'messages',
         populate: {
           path: 'sender',
-          select: 'firstName lastName avatar _id'
+          select: BASIC_INFO_SELECT
         }
       })
 
