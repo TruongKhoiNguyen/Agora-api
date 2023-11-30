@@ -6,6 +6,7 @@ import { User, UserSchema } from 'src/user/schemas/user.schema'
 import { Key, KeySchema } from 'src/user/schemas/key.schema'
 import { JwtModule } from '@nestjs/jwt'
 import { JwtRefreshStratery, JwtStratery } from './strateries'
+import { PusherModule } from 'src/pusher/pusher.module'
 
 @Module({
   imports: [
@@ -13,7 +14,8 @@ import { JwtRefreshStratery, JwtStratery } from './strateries'
       { name: User.name, schema: UserSchema },
       { name: Key.name, schema: KeySchema }
     ]),
-    JwtModule.register({ global: true })
+    JwtModule.register({ global: true }),
+    PusherModule
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStratery, JwtRefreshStratery]

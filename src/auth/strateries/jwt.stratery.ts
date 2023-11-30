@@ -31,7 +31,7 @@ export class JwtStratery extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: { id: Types.ObjectId; email: string }) {
-    const user = await this.userModel.findById(payload.id).lean()
+    const user = await this.userModel.findById(payload.id)
     return user
   }
 }

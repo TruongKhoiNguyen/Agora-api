@@ -9,6 +9,10 @@ import { UserModule } from './user/user.module'
 import { JwtAuthGuard } from './auth/guards/jwt.guard'
 import { MailerModule, PugAdapter } from '@nest-modules/mailer'
 import { join } from 'path'
+import { PusherModule } from './pusher/pusher.module'
+import { ConversationModule } from './conversation/conversation.module'
+import { MessageModule } from './message/message.module'
+import { NotificationModule } from './notification/notification.module'
 dotenv.config()
 
 @Module({
@@ -40,7 +44,11 @@ dotenv.config()
       inject: [ConfigService]
     }),
     AuthModule,
-    UserModule
+    UserModule,
+    PusherModule,
+    ConversationModule,
+    MessageModule,
+    NotificationModule
   ],
   controllers: [AppController],
   providers: [
