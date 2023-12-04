@@ -2,19 +2,22 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { Model, Types } from 'mongoose'
 import { InjectModel } from '@nestjs/mongoose'
 import { Conversation } from './schemas/conversation.schema'
-import { BASIC_INFO_SELECT, UserDocument } from 'src/user/schemas/user.schema'
+import { User, BASIC_INFO_SELECT, UserDocument } from 'src/user/schemas/user.schema'
 import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
-import { Message } from 'src/message/schemas/message.schema'
+import { Message, MessageTypes } from 'src/message/schemas/message.schema'
 import { CloudinaryService, ImageType } from 'src/cloudinary/cloudinary.service'
 import { CreateConvDto, UpdateInfoConvDto } from './dto'
+import { MessageService } from 'src/message/message.service'
 
 @Injectable()
 export class ConversationService {
   constructor(
     @InjectModel(Conversation.name) private conversationModel: Model<Conversation>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
+    @InjectModel(User.name) private userModel: Model<User>,
     private pusherService: PusherService,
-    private cloudinaryService: CloudinaryService
+    private cloudinaryService: CloudinaryService,
+    private messageService: MessageService
   ) {}
 
   async createConversation(user: UserDocument, createConvDto: CreateConvDto) {
@@ -217,11 +220,18 @@ export class ConversationService {
       thumb: result[0].secure_url
     })
 
+    await this.messageService.createMessage(
+      userId,
+      { content: `Changed conversation thumb`, conversationId },
+      null,
+      MessageTypes.UP_THUMB
+    )
+
     conversation.members.forEach(member => {
       this.pusherService.trigger(member.toString(), 'conversation:update', {
-        tag: ConversationTag.UPDATE_INFO,
+        tag: ConversationTag.UPDATE_THUMB,
         conversationId,
-        name: result[0].secure_url
+        imageUrl: result[0].secure_url
       })
     })
   }
@@ -247,6 +257,16 @@ export class ConversationService {
     await conversation.updateOne({
       name: updateInfoConvDto.name
     })
+
+    await this.messageService.createMessage(
+      userId,
+      {
+        content: `Changed conversation name to ${updateInfoConvDto.name}`,
+        conversationId
+      },
+      null,
+      MessageTypes.UP_INFO
+    )
 
     conversation.members.forEach(member => {
       this.pusherService.trigger(member.toString(), 'conversation:update', {
@@ -281,9 +301,25 @@ export class ConversationService {
       ...new Set([...conversation.members.map(member => member.toString()), ...memberIds])
     ]
 
+    const numOfAddedMembers = newMembers.length - conversation.members.length
+
+    if (numOfAddedMembers === 0) {
+      throw new BadRequestException('Invalid input')
+    }
+
     await conversation.updateOne({
       members: newMembers.map(member => new Types.ObjectId(member))
     })
+
+    await this.messageService.createMessage(
+      userId,
+      {
+        content: `Added ${numOfAddedMembers} member(s)`,
+        conversationId
+      },
+      null,
+      MessageTypes.UP_ADD_MEMBER
+    )
 
     newMembers.forEach(member => {
       this.pusherService.trigger(member, 'conversation:update', {
@@ -300,6 +336,8 @@ export class ConversationService {
       admins: { $in: [userId] },
       members: { $in: [new Types.ObjectId(memberId)] }
     })
+
+    const member = await this.userModel.findOne({ _id: new Types.ObjectId(memberId) })
 
     if (!conversation) {
       throw new BadRequestException('Invalid conversation or permission denied')
@@ -324,9 +362,21 @@ export class ConversationService {
       return member.toString() !== memberId
     })
 
-    await conversation.updateOne({
+    const result = await conversation.updateOne({
       members: newMembers
     })
+
+    if (result) {
+      await this.messageService.createMessage(
+        userId,
+        {
+          content: `Removed ${member.displayName}`,
+          conversationId
+        },
+        null,
+        MessageTypes.UP_RM_MEMBER
+      )
+    }
 
     newMembers.forEach(member => {
       this.pusherService.trigger(member.toString(), 'conversation:update', {
@@ -369,12 +419,24 @@ export class ConversationService {
       return member.toString() !== userId.toString()
     })
 
-    await conversation.updateOne({
+    const result = await conversation.updateOne({
       members: newMembers,
       $pull: {
         admins: userId
       }
     })
+
+    if (result) {
+      await this.messageService.createMessage(
+        userId,
+        {
+          content: `Left conversation`,
+          conversationId
+        },
+        null,
+        MessageTypes.UP_LEAVE
+      )
+    }
 
     newMembers.forEach(member => {
       this.pusherService.trigger(member.toString(), 'conversation:update', {
@@ -396,6 +458,8 @@ export class ConversationService {
       members: { $in: [new Types.ObjectId(adminId)] }
     })
 
+    const admin = await this.userModel.findOne({ _id: new Types.ObjectId(adminId) })
+
     if (!conversation) {
       throw new BadRequestException('Invalid conversation or permission denied')
     }
@@ -415,6 +479,16 @@ export class ConversationService {
         }
       },
       { new: true }
+    )
+
+    await this.messageService.createMessage(
+      userId,
+      {
+        content: `Added ${admin.displayName} to admin`,
+        conversationId
+      },
+      null,
+      MessageTypes.UP_ADD_ADMIN
     )
 
     conversation.members.forEach(member => {

@@ -22,6 +22,7 @@ import { filterImageConfig, storageConfig } from 'src/configs/upload-file.config
 import { CloudinaryService, ImageType } from 'src/cloudinary/cloudinary.service'
 import { CloudinaryResponse } from 'src/cloudinary/cloudinary-response'
 import { ConversationIdParam } from 'src/conversation/params/conversationId.param'
+import { MessageTypes } from './schemas/message.schema'
 
 @ApiTags('Message')
 @Controller('messages')
@@ -59,7 +60,12 @@ export class MessageController {
       const cloudImages = await Promise.all(uploadFilePromises)
       const imageUrls = cloudImages.map((image: CloudinaryResponse) => image.secure_url)
 
-      newMessage = await this.messageService.createMessage(user._id, newMessageDto, imageUrls)
+      newMessage = await this.messageService.createMessage(
+        user._id,
+        newMessageDto,
+        imageUrls,
+        MessageTypes.IMAGE
+      )
     } else {
       newMessage = await this.messageService.createMessage(user._id, newMessageDto)
     }
