@@ -1,8 +1,8 @@
 import { NewMessageDto } from './dto/new-message.dto'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Message } from './schemas/message.schema'
 import mongoose, { Model, Types } from 'mongoose'
+import { Message, MessageTypes } from './schemas/message.schema'
 import { Conversation } from 'src/conversation/schemas/conversation.schema'
 import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
 import { BASIC_INFO_SELECT } from 'src/user/schemas/user.schema'
@@ -15,7 +15,12 @@ export class MessageService {
     private pusherService: PusherService
   ) {}
 
-  async createMessage(userId: Types.ObjectId, newMessageDto: NewMessageDto, images?: string[]) {
+  async createMessage(
+    userId: Types.ObjectId,
+    newMessageDto: NewMessageDto,
+    images?: string[],
+    type?: MessageTypes
+  ) {
     const { conversationId, content } = newMessageDto
 
     const conversation = await this.conversationModel
@@ -34,6 +39,7 @@ export class MessageService {
       content,
       sender: userId,
       images: images || [],
+      type: type ? type : MessageTypes.TEXT,
       conversationId
     })
 
