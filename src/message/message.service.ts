@@ -84,6 +84,8 @@ export class MessageService {
           $gt: new Types.ObjectId('655b1bc30255a0bb1d89b05f')
         }
       })
+      .sort({ _id: -1 })
+      .select('_id content createdAt')
       .populate('sender', BASIC_INFO_SELECT)
       .populate('seenUsers', BASIC_INFO_SELECT)
 
@@ -145,5 +147,60 @@ export class MessageService {
     } catch (err) {
       throw new BadRequestException('Invalid conversationId')
     }
+  }
+
+  async getMessagesRange(
+    userId: Types.ObjectId,
+    messageId: string,
+    conversationId: string,
+    range: number
+  ) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      members: { $in: [userId] }
+    })
+
+    const message = await this.messageModel
+      .findOne({
+        _id: new Types.ObjectId(messageId)
+      })
+      .lean()
+
+    if (!message || message.images.length === 0) {
+      throw new BadRequestException('Invalid message')
+    }
+
+    if (!conversation) {
+      throw new BadRequestException('Conversation not found or you are not a member')
+    }
+
+    const oldMessages = await this.messageModel
+      .find({
+        conversationId,
+        _id: {
+          $lt: new Types.ObjectId(messageId)
+        }
+      })
+      .sort({ _id: -1 })
+      .select('_id content createdAt')
+      .populate('sender', BASIC_INFO_SELECT)
+      .populate('seenUsers', BASIC_INFO_SELECT)
+      .limit(range)
+      .lean()
+
+    const newMessages = await this.messageModel
+      .find({
+        conversationId,
+        _id: {
+          $gt: new Types.ObjectId(messageId)
+        }
+      })
+      .select('_id content createdAt')
+      .populate('sender', BASIC_INFO_SELECT)
+      .populate('seenUsers', BASIC_INFO_SELECT)
+      .limit(range)
+      .lean()
+
+    return [...oldMessages.reverse(), message, ...newMessages]
   }
 }
