@@ -123,4 +123,25 @@ export class MessageController {
       metadata: messages
     }
   }
+
+  @Get('image/:conversationId')
+  async getMessagesWithImage(
+    @GetUserRequest() user: UserDocument,
+    @Query('messid') messageId: string,
+    @Query('range') range: string,
+    @Param() convIdParam: ConversationIdParam
+  ) {
+    const messages = await this.messageService.getMessagesRange(
+      user._id,
+      messageId,
+      convIdParam.conversationId,
+      range ? parseInt(range) : 25
+    )
+
+    return {
+      success: true,
+      message: 'Messages fetched successfully',
+      metadata: messages
+    }
+  }
 }
