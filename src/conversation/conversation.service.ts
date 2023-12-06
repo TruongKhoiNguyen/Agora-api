@@ -573,4 +573,20 @@ export class ConversationService {
 
     return links
   }
+
+  async search(userId: Types.ObjectId, keyword: string) {
+    const conversations = this.conversationModel.find({
+      $or: [
+        {
+          name: {
+            $regex: keyword,
+            $options: 'i'
+          }
+        }
+      ],
+      members: { $in: [userId] }
+    })
+
+    return conversations
+  }
 }
