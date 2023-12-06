@@ -144,4 +144,25 @@ export class MessageController {
       metadata: messages
     }
   }
+
+  @Get('search/content/:conversationId')
+  async search(
+    @Query('keyword') query: string,
+    @GetUserRequest() user: UserDocument,
+    @Param() convIdParam: ConversationIdParam,
+    @Query('range') range: string,
+    @Query('next') next: string
+  ) {
+    return {
+      success: true,
+      message: 'Search message successfully',
+      metadata: await this.messageService.search(
+        user._id,
+        query,
+        convIdParam.conversationId,
+        next,
+        range ? parseInt(range) : 25
+      )
+    }
+  }
 }
