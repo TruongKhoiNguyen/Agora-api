@@ -1,8 +1,8 @@
 import { NewMessageDto } from './dto/new-message.dto'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Message } from './schemas/message.schema'
 import mongoose, { Model, Types } from 'mongoose'
+import { Message, MessageTypes } from './schemas/message.schema'
 import { Conversation } from 'src/conversation/schemas/conversation.schema'
 import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
 import { BASIC_INFO_SELECT } from 'src/user/schemas/user.schema'
@@ -15,7 +15,12 @@ export class MessageService {
     private pusherService: PusherService
   ) {}
 
-  async createMessage(userId: Types.ObjectId, newMessageDto: NewMessageDto, images?: string[]) {
+  async createMessage(
+    userId: Types.ObjectId,
+    newMessageDto: NewMessageDto,
+    images?: string[],
+    type?: MessageTypes
+  ) {
     const { conversationId, content } = newMessageDto
 
     const conversation = await this.conversationModel
@@ -34,6 +39,7 @@ export class MessageService {
       content,
       sender: userId,
       images: images || [],
+      type: type ? type : MessageTypes.TEXT,
       conversationId
     })
 
@@ -78,6 +84,8 @@ export class MessageService {
           $gt: new Types.ObjectId('655b1bc30255a0bb1d89b05f')
         }
       })
+      .sort({ _id: -1 })
+      .select('_id content createdAt')
       .populate('sender', BASIC_INFO_SELECT)
       .populate('seenUsers', BASIC_INFO_SELECT)
 
@@ -138,6 +146,129 @@ export class MessageService {
       }
     } catch (err) {
       throw new BadRequestException('Invalid conversationId')
+    }
+  }
+
+  async getMessagesRange(
+    userId: Types.ObjectId,
+    messageId: string,
+    conversationId: string,
+    range: number
+  ) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      members: { $in: [userId] }
+    })
+
+    const message = await this.messageModel
+      .findOne({
+        _id: new Types.ObjectId(messageId)
+      })
+      .lean()
+
+    if (!message) {
+      throw new BadRequestException('Invalid message')
+    }
+
+    if (!conversation) {
+      throw new BadRequestException('Conversation not found or you are not a member')
+    }
+
+    const oldMessages = await this.messageModel
+      .find({
+        conversationId,
+        _id: {
+          $lt: new Types.ObjectId(messageId)
+        }
+      })
+      .sort({ _id: -1 })
+      .populate('sender', BASIC_INFO_SELECT)
+      .populate('seenUsers', BASIC_INFO_SELECT)
+      .limit(range)
+      .lean()
+
+    const newMessages = await this.messageModel
+      .find({
+        conversationId,
+        _id: {
+          $gte: new Types.ObjectId(messageId)
+        }
+      })
+      .populate('sender', BASIC_INFO_SELECT)
+      .populate('seenUsers', BASIC_INFO_SELECT)
+      .limit(range + 1)
+      .lean()
+
+    return [...oldMessages.reverse(), ...newMessages]
+  }
+
+  async search(
+    userId: Types.ObjectId,
+    query: string,
+    conversationId: string,
+    next: string,
+    range: number
+  ) {
+    if (next && !mongoose.Types.ObjectId.isValid(next)) {
+      throw new BadRequestException('Invalid objectId')
+    }
+
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      members: { $in: [userId] }
+    })
+
+    if (!conversation) {
+      throw new BadRequestException('Conversation not found or you are not a member')
+    }
+
+    const messages = await this.messageModel
+      .find({
+        conversationId,
+        content: {
+          $regex: query,
+          $options: 'i'
+        },
+        _id: {
+          $lt: next ? new Types.ObjectId(next) : new Types.ObjectId()
+        }
+      })
+      .sort({ createdAt: -1 })
+
+    if (messages.length === 0) {
+      return []
+    }
+
+    const oldMessages = await this.messageModel
+      .find({
+        conversationId,
+        _id: {
+          $lt: messages[0]._id
+        }
+      })
+      .sort({ _id: -1 })
+      .select('_id content createdAt')
+      .populate('sender', BASIC_INFO_SELECT)
+      .populate('seenUsers', BASIC_INFO_SELECT)
+      .limit(range)
+      .lean()
+
+    const newMessages = await this.messageModel
+      .find({
+        conversationId,
+        _id: {
+          $gte: messages[0]._id
+        }
+      })
+      .select('_id content createdAt')
+      .populate('sender', BASIC_INFO_SELECT)
+      .populate('seenUsers', BASIC_INFO_SELECT)
+      .limit(range + 1)
+      .lean()
+
+    return {
+      messages: [...oldMessages.reverse(), ...newMessages],
+      total: messages.length
     }
   }
 }

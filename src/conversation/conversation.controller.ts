@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseInterceptors,
@@ -228,6 +229,15 @@ export class ConversationController {
       success: true,
       message: 'Get all links successfully',
       metadata: links
+    }
+  }
+
+  @Get('search/name')
+  async search(@Query('keyword') query: string, @GetUserRequest() user: UserDocument) {
+    return {
+      success: true,
+      message: "Search user's conversation successfully",
+      metadata: await this.consversationService.search(user._id, query)
     }
   }
 }

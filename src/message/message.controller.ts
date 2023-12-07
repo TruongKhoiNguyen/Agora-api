@@ -22,6 +22,7 @@ import { filterImageConfig, storageConfig } from 'src/configs/upload-file.config
 import { CloudinaryService, ImageType } from 'src/cloudinary/cloudinary.service'
 import { CloudinaryResponse } from 'src/cloudinary/cloudinary-response'
 import { ConversationIdParam } from 'src/conversation/params/conversationId.param'
+import { MessageTypes } from './schemas/message.schema'
 
 @ApiTags('Message')
 @Controller('messages')
@@ -59,7 +60,12 @@ export class MessageController {
       const cloudImages = await Promise.all(uploadFilePromises)
       const imageUrls = cloudImages.map((image: CloudinaryResponse) => image.secure_url)
 
-      newMessage = await this.messageService.createMessage(user._id, newMessageDto, imageUrls)
+      newMessage = await this.messageService.createMessage(
+        user._id,
+        newMessageDto,
+        imageUrls,
+        MessageTypes.IMAGE
+      )
     } else {
       newMessage = await this.messageService.createMessage(user._id, newMessageDto)
     }
@@ -115,6 +121,48 @@ export class MessageController {
       success: true,
       message: 'Messages fetched successfully',
       metadata: messages
+    }
+  }
+
+  @Get('image/:conversationId')
+  async getMessagesWithImage(
+    @GetUserRequest() user: UserDocument,
+    @Query('messid') messageId: string,
+    @Query('range') range: string,
+    @Param() convIdParam: ConversationIdParam
+  ) {
+    const messages = await this.messageService.getMessagesRange(
+      user._id,
+      messageId,
+      convIdParam.conversationId,
+      range ? parseInt(range) : 25
+    )
+
+    return {
+      success: true,
+      message: 'Messages fetched successfully',
+      metadata: messages
+    }
+  }
+
+  @Get('search/content/:conversationId')
+  async search(
+    @Query('keyword') query: string,
+    @GetUserRequest() user: UserDocument,
+    @Param() convIdParam: ConversationIdParam,
+    @Query('range') range: string,
+    @Query('next') next: string
+  ) {
+    return {
+      success: true,
+      message: 'Search message successfully',
+      metadata: await this.messageService.search(
+        user._id,
+        query,
+        convIdParam.conversationId,
+        next,
+        range ? parseInt(range) : 25
+      )
     }
   }
 }
