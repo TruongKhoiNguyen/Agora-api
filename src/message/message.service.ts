@@ -131,21 +131,17 @@ export class MessageService {
   }
 
   async typingMessage(userId: Types.ObjectId, conversationId: string) {
-    try {
-      const conversation = await this.conversationModel.findById(new Types.ObjectId(conversationId))
+    const conversation = await this.conversationModel.findById(new Types.ObjectId(conversationId))
 
-      if (!conversation) {
-        throw new BadRequestException('Conversation not found')
-      }
+    if (!conversation) {
+      throw new BadRequestException('Conversation not found')
+    }
 
-      this.pusherService.trigger(conversationId, 'message:typing', { userId })
+    this.pusherService.trigger(conversationId, 'message:typing', { userId })
 
-      return {
-        success: true,
-        message: 'Typing event create successfully'
-      }
-    } catch (err) {
-      throw new BadRequestException('Invalid conversationId')
+    return {
+      success: true,
+      message: 'Typing event create successfully'
     }
   }
 
@@ -236,7 +232,10 @@ export class MessageService {
       .sort({ createdAt: -1 })
 
     if (messages.length === 0) {
-      return []
+      return {
+        messages: [],
+        total: messages.length
+      }
     }
 
     const oldMessages = await this.messageModel

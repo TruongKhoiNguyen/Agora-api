@@ -125,7 +125,7 @@ export class MessageController {
   }
 
   @Get('image/:conversationId')
-  async getMessagesWithImage(
+  async getMessagesRange(
     @GetUserRequest() user: UserDocument,
     @Query('messid') messageId: string,
     @Query('range') range: string,
