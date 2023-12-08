@@ -462,6 +462,15 @@ describe('ConversationService', () => {
     })
 
     it('should add members error', async () => {
+      await expect(
+        service.addMembers(mockConversation._id.toString(), mockUserData._id, [
+          'objectid',
+          mockUserData._id.toString()
+        ])
+      ).rejects.toThrow('Invalid input')
+    })
+
+    it('should add members error', async () => {
       jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce({
         ...mockConversation,
         isGroup: false
@@ -552,11 +561,16 @@ describe('ConversationService', () => {
     it('should remove members success', async () => {
       jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce({
         ...mockConversation,
+        members: [
+          new Types.ObjectId('655f73beb014739c9499ab11'),
+          new Types.ObjectId('655f73eab014739c9499ab14'),
+          new Types.ObjectId(memberId)
+        ],
         admins: [new Types.ObjectId('655f7423b014739c9499ab1a')],
         updateOne: jest.fn().mockResolvedValueOnce(true)
       })
 
-      jest.spyOn(mockMessageService, 'createMessage').mockResolvedValue(true)
+      jest.spyOn(mockMessageService, 'createMessage').mockResolvedValueOnce(true)
 
       await expect(
         service.removeMembers(mockConversation._id.toString(), mockUserData._id, memberId)
@@ -567,7 +581,11 @@ describe('ConversationService', () => {
       jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce({
         ...mockConversation,
         admins: [new Types.ObjectId('655f7423b014739c9499ab1a')],
-        updateOne: jest.fn().mockResolvedValueOnce(null)
+        updateOne: jest.fn().mockResolvedValue(null)
+      })
+
+      jest.spyOn(mockUserModel, 'findOne').mockResolvedValueOnce({
+        ...mockUserData
       })
 
       await expect(
@@ -625,6 +643,25 @@ describe('ConversationService', () => {
     it('should leave conversation success', async () => {
       jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce({
         ...mockConversation,
+        admins: [new Types.ObjectId('655f7423b014739c9499ab11')],
+        updateOne: jest.fn().mockResolvedValueOnce(true)
+      })
+
+      jest.spyOn(mockMessageService, 'createMessage').mockResolvedValue(true)
+
+      await expect(
+        service.leaveConversation(mockConversation._id.toString(), mockUserData._id)
+      ).resolves.toEqual(true)
+    })
+
+    it('should leave conversation success', async () => {
+      jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce({
+        ...mockConversation,
+        members: [
+          new Types.ObjectId('655f73beb014739c9499ab11'),
+          new Types.ObjectId('655f73eab014739c9499ab14'),
+          mockUserData._id
+        ],
         admins: [new Types.ObjectId('655f7423b014739c9499ab11')],
         updateOne: jest.fn().mockResolvedValueOnce(true)
       })
