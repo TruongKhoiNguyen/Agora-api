@@ -240,4 +240,13 @@ export class ConversationController {
       metadata: await this.consversationService.search(user._id, query)
     }
   }
+
+  @Get('not-seen/message')
+  async getNotSeenMessage(@GetUserRequest() user: UserDocument) {
+    return {
+      success: true,
+      message: 'Get not seen message successfully',
+      metadata: await this.consversationService.getNotSeenMessage(user._id)
+    }
+  }
 }

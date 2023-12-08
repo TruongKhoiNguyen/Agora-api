@@ -600,4 +600,50 @@ export class ConversationService {
 
     return conversations
   }
+
+  async getNotSeenMessage(userId: Types.ObjectId) {
+    const conversations = await this.conversationModel
+      .find({
+        members: { $in: [userId] }
+      })
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'sender',
+          select: BASIC_INFO_SELECT
+        }
+      })
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'seenUsers',
+          select: BASIC_INFO_SELECT
+        }
+      })
+
+    const notSeenMessages = conversations.reduce((prev, conversation) => {
+      if (conversation.messages.length === 0) {
+        return prev
+      }
+
+      const lastMessage = conversation.messages[conversation.messages.length - 1]
+      if (!lastMessage) {
+        return prev
+      }
+
+      if (lastMessage.sender['_id'].toString() === userId.toString()) {
+        return prev
+      }
+
+      const hasSeen = lastMessage.seenUsers.some(seenUser => {
+        return seenUser['_id'].toString() === userId.toString()
+      })
+      if (hasSeen) return prev
+
+      prev.push(lastMessage)
+      return prev
+    }, [])
+
+    return notSeenMessages
+  }
 }
