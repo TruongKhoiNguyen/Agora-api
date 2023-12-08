@@ -45,9 +45,8 @@ export class CloudinaryService {
 
   public clearFile(filePath: string): boolean {
     filePath = path.join(__dirname, '..', '..', filePath)
-    fs.unlink(filePath, err => {
-      console.log(err)
-    })
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    fs.unlink(filePath, err => {})
 
     return true
   }
