@@ -6,18 +6,10 @@ import { JwtService } from '@nestjs/jwt'
 import { MailerService } from '@nest-modules/mailer'
 import { ConfigService } from '@nestjs/config'
 import * as bcrypt from 'bcrypt'
-import {
-  BadRequestException,
-  ForbiddenException,
-  HttpException,
-  HttpStatus,
-  NotFoundException,
-  UnauthorizedException
-} from '@nestjs/common'
+import { BadRequestException } from '@nestjs/common'
 import { LoginDto } from './dto'
 import { Types } from 'mongoose'
 import { PusherService } from 'src/pusher/pusher.service'
-import { NotFoundError } from 'rxjs'
 
 describe('AuthService', () => {
   let service: AuthService

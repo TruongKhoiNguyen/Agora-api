@@ -83,6 +83,14 @@ describe('CloudinaryService', () => {
       )
       expect(cloudFile).toEqual(null)
     })
+
+    it('should throw an error', async () => {
+      jest.spyOn(v2.uploader, 'upload').mockRejectedValue(new Error('error'))
+
+      await expect(
+        service.uploadFile({ path: 'path' } as Express.Multer.File, ImageType.CHAT)
+      ).rejects.toThrowError('Could not upload file')
+    })
   })
 
   describe('Remove File in cloudinary', () => {
@@ -99,6 +107,14 @@ describe('CloudinaryService', () => {
     it('should return a Cloudinary cloud file', async () => {
       const response = await service.destroyFile('agora/images/chats/public_id.jpg', ImageType.CHAT)
       expect(response).toMatchObject({ result: 'ok' })
+    })
+
+    it('should throw an error', async () => {
+      jest.spyOn(v2.uploader, 'destroy').mockRejectedValue(new Error('error'))
+
+      await expect(
+        service.destroyFile('agora/images/chats/public_id.jpg', ImageType.CHAT)
+      ).rejects.toThrowError('Could not remove file')
     })
   })
 
