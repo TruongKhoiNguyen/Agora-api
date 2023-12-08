@@ -39,7 +39,7 @@ export class ConversationController {
     @GetUserRequest() user: UserDocument,
     @Body() createConvDto: CreateConvDto
   ) {
-    const result = await this.consversationService.createConversation(user, createConvDto)
+    const result = await this.consversationService.createConversation(user._id, createConvDto)
     return {
       success: true,
       message: 'Conversation created successfully',
@@ -166,7 +166,7 @@ export class ConversationController {
     )
     return {
       success: true,
-      message: 'remove members successfully'
+      message: 'Remove members successfully'
     }
   }
 

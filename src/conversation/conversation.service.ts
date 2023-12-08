@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { Model, Types } from 'mongoose'
 import { InjectModel } from '@nestjs/mongoose'
 import { Conversation } from './schemas/conversation.schema'
-import { User, BASIC_INFO_SELECT, UserDocument } from 'src/user/schemas/user.schema'
+import { User, BASIC_INFO_SELECT } from 'src/user/schemas/user.schema'
 import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
 import { Message, MessageTypes } from 'src/message/schemas/message.schema'
 import { CloudinaryService, ImageType } from 'src/cloudinary/cloudinary.service'
@@ -20,7 +20,7 @@ export class ConversationService {
     private messageService: MessageService
   ) {}
 
-  async createConversation(user: UserDocument, createConvDto: CreateConvDto) {
+  async createConversation(userId: Types.ObjectId, createConvDto: CreateConvDto) {
     const { isGroup, members, name } = createConvDto
 
     if (isGroup && members.length < 2) {
@@ -30,8 +30,8 @@ export class ConversationService {
     if (isGroup) {
       let newGroupConversation = await this.conversationModel.create({
         name,
-        admins: [user._id],
-        members: [...members, user._id],
+        admins: [userId],
+        members: [...members, userId],
         isGroup,
         lastMessageAt: new Date()
       })
@@ -54,10 +54,10 @@ export class ConversationService {
     const existingConversations = await this.conversationModel.find({
       $or: [
         {
-          members: { $eq: [user._id, friendId] }
+          members: { $eq: [userId, friendId] }
         },
         {
-          members: { $eq: [friendId, user._id] }
+          members: { $eq: [friendId, userId] }
         }
       ]
     })
@@ -68,9 +68,9 @@ export class ConversationService {
 
     let newSingleConversation = await this.conversationModel.create({
       name,
-      admins: [user._id, friendId],
+      admins: [userId, friendId],
       lastMessageAt: new Date(),
-      members: [user._id, friendId]
+      members: [userId, friendId]
     })
 
     newSingleConversation = await newSingleConversation.populate('members', BASIC_INFO_SELECT)
@@ -234,6 +234,7 @@ export class ConversationService {
         imageUrl: result[0].secure_url
       })
     })
+    return true
   }
 
   async updateInfo(
@@ -275,6 +276,8 @@ export class ConversationService {
         updateInfo: updateInfoConvDto
       })
     })
+
+    return true
   }
 
   async addMembers(conversationId: string, userId: Types.ObjectId, memberIds: string[]) {
@@ -328,6 +331,8 @@ export class ConversationService {
         members: newMembers.map(member => new Types.ObjectId(member))
       })
     })
+
+    return true
   }
 
   async removeMembers(conversationId: string, userId: Types.ObjectId, memberId: string) {
@@ -385,6 +390,8 @@ export class ConversationService {
         members: newMembers
       })
     })
+
+    return true
   }
 
   async leaveConversation(conversationId: string, userId: Types.ObjectId) {
@@ -445,6 +452,8 @@ export class ConversationService {
         members: newMembers
       })
     })
+
+    return true
   }
 
   async addAdmins(conversationId: string, userId: Types.ObjectId, adminId: string) {
@@ -498,6 +507,8 @@ export class ConversationService {
         admins: [...conversation.admins, new Types.ObjectId(adminId)]
       })
     })
+
+    return true
   }
 
   async getAllImages(conversationId: string, userId: Types.ObjectId) {
