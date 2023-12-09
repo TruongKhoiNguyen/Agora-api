@@ -111,6 +111,8 @@ export class UserService {
       tag: FriendTag.ADD_FRIEND,
       friendRequest
     })
+
+    return true
   }
 
   async acceptFriend(user: UserDocument, { userId: friendId }: FriendIdDto) {
@@ -184,6 +186,8 @@ export class UserService {
         }
       }
     })
+
+    return true
   }
 
   async cancelFriendRequest(user: UserDocument, { userId: friendId }: FriendIdDto) {
@@ -217,6 +221,8 @@ export class UserService {
       tag: FriendTag.CANCEL_FRIEND_REQUEST,
       friendId: user._id
     })
+
+    return true
   }
 
   async removeFriend(user: UserDocument, { userId: friendId }: FriendIdDto) {
@@ -246,5 +252,7 @@ export class UserService {
         friends: user._id
       }
     })
+
+    return true
   }
 }

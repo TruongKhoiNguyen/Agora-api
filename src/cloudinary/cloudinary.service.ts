@@ -26,7 +26,7 @@ export class CloudinaryService {
       }
       return cloudFile
     } catch (error) {
-      throw new InternalServerErrorException("Couldn't upload file")
+      throw new InternalServerErrorException('Could not upload file')
     }
   }
 
@@ -39,17 +39,14 @@ export class CloudinaryService {
       const response = await v2.uploader.destroy(publish_id)
       return response
     } catch (error) {
-      throw new InternalServerErrorException("Couldn't remove file")
+      throw new InternalServerErrorException('Could not remove file')
     }
   }
 
   public clearFile(filePath: string): boolean {
     filePath = path.join(__dirname, '..', '..', filePath)
-    fs.unlink(filePath, err => {
-      if (err) {
-        return false
-      }
-    })
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    fs.unlink(filePath, err => {})
 
     return true
   }

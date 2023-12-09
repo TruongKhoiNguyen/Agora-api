@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { Model, Types } from 'mongoose'
 import { InjectModel } from '@nestjs/mongoose'
 import { Conversation } from './schemas/conversation.schema'
-import { User, BASIC_INFO_SELECT, UserDocument } from 'src/user/schemas/user.schema'
+import { User, BASIC_INFO_SELECT } from 'src/user/schemas/user.schema'
 import { ConversationTag, PusherService } from 'src/pusher/pusher.service'
 import { Message, MessageTypes } from 'src/message/schemas/message.schema'
 import { CloudinaryService, ImageType } from 'src/cloudinary/cloudinary.service'
@@ -20,7 +20,7 @@ export class ConversationService {
     private messageService: MessageService
   ) {}
 
-  async createConversation(user: UserDocument, createConvDto: CreateConvDto) {
+  async createConversation(userId: Types.ObjectId, createConvDto: CreateConvDto) {
     const { isGroup, members, name } = createConvDto
 
     if (isGroup && members.length < 2) {
@@ -30,8 +30,8 @@ export class ConversationService {
     if (isGroup) {
       let newGroupConversation = await this.conversationModel.create({
         name,
-        admins: [user._id],
-        members: [...members, user._id],
+        admins: [userId],
+        members: [...members, userId],
         isGroup,
         lastMessageAt: new Date()
       })
@@ -54,10 +54,10 @@ export class ConversationService {
     const existingConversations = await this.conversationModel.find({
       $or: [
         {
-          members: { $eq: [user._id, friendId] }
+          members: { $eq: [userId, friendId] }
         },
         {
-          members: { $eq: [friendId, user._id] }
+          members: { $eq: [friendId, userId] }
         }
       ]
     })
@@ -68,9 +68,9 @@ export class ConversationService {
 
     let newSingleConversation = await this.conversationModel.create({
       name,
-      admins: [user._id, friendId],
+      admins: [userId, friendId],
       lastMessageAt: new Date(),
-      members: [user._id, friendId]
+      members: [userId, friendId]
     })
 
     newSingleConversation = await newSingleConversation.populate('members', BASIC_INFO_SELECT)
@@ -234,6 +234,7 @@ export class ConversationService {
         imageUrl: result[0].secure_url
       })
     })
+    return true
   }
 
   async updateInfo(
@@ -275,6 +276,8 @@ export class ConversationService {
         updateInfo: updateInfoConvDto
       })
     })
+
+    return true
   }
 
   async addMembers(conversationId: string, userId: Types.ObjectId, memberIds: string[]) {
@@ -284,21 +287,35 @@ export class ConversationService {
       }
     })
 
-    const conversation = await this.conversationModel.findOne({
-      _id: new Types.ObjectId(conversationId),
-      admins: { $in: [userId] }
+    const conversation = await this.conversationModel
+      .findOne({
+        _id: new Types.ObjectId(conversationId),
+        admins: { $in: [userId] }
+      })
+      .populate('members', BASIC_INFO_SELECT)
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'sender',
+          select: BASIC_INFO_SELECT
+        }
+      })
+
+    const members = await this.userModel.find({
+      _id: { $in: memberIds.map(memberId => new Types.ObjectId(memberId)) }
     })
 
     if (!conversation) {
       throw new BadRequestException('Invalid conversation or permission denied')
     }
+    const oldMember = conversation.members.map(member => member['_id'].toString())
 
     if (!conversation.isGroup) {
       throw new BadRequestException('Invalid conversation')
     }
 
     const newMembers = [
-      ...new Set([...conversation.members.map(member => member.toString()), ...memberIds])
+      ...new Set([...conversation.members.map(member => member['_id'].toString()), ...memberIds])
     ]
 
     const numOfAddedMembers = newMembers.length - conversation.members.length
@@ -307,11 +324,13 @@ export class ConversationService {
       throw new BadRequestException('Invalid input')
     }
 
+    conversation.members = [...conversation.members, ...members]
+
     await conversation.updateOne({
       members: newMembers.map(member => new Types.ObjectId(member))
     })
 
-    await this.messageService.createMessage(
+    const newMessage = await this.messageService.createMessage(
       userId,
       {
         content: `Added ${numOfAddedMembers} member(s)`,
@@ -320,14 +339,21 @@ export class ConversationService {
       null,
       MessageTypes.UP_ADD_MEMBER
     )
+    conversation.messages.push(newMessage)
 
-    newMembers.forEach(member => {
+    memberIds.forEach(member => {
+      this.pusherService.trigger(member, 'conversation:new', conversation)
+    })
+
+    oldMember.forEach(member => {
       this.pusherService.trigger(member, 'conversation:update', {
         tag: ConversationTag.ADD_MEMBERS,
         conversationId,
         members: newMembers.map(member => new Types.ObjectId(member))
       })
     })
+
+    return true
   }
 
   async removeMembers(conversationId: string, userId: Types.ObjectId, memberId: string) {
@@ -385,6 +411,8 @@ export class ConversationService {
         members: newMembers
       })
     })
+
+    return true
   }
 
   async leaveConversation(conversationId: string, userId: Types.ObjectId) {
@@ -445,6 +473,8 @@ export class ConversationService {
         members: newMembers
       })
     })
+
+    return true
   }
 
   async addAdmins(conversationId: string, userId: Types.ObjectId, adminId: string) {
@@ -498,6 +528,8 @@ export class ConversationService {
         admins: [...conversation.admins, new Types.ObjectId(adminId)]
       })
     })
+
+    return true
   }
 
   async getAllImages(conversationId: string, userId: Types.ObjectId) {
@@ -588,5 +620,51 @@ export class ConversationService {
     })
 
     return conversations
+  }
+
+  async getNotSeenMessage(userId: Types.ObjectId) {
+    const conversations = await this.conversationModel
+      .find({
+        members: { $in: [userId] }
+      })
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'sender',
+          select: BASIC_INFO_SELECT
+        }
+      })
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'seenUsers',
+          select: BASIC_INFO_SELECT
+        }
+      })
+
+    const notSeenMessages = conversations.reduce((prev, conversation) => {
+      if (conversation.messages.length === 0) {
+        return prev
+      }
+
+      const lastMessage = conversation.messages[conversation.messages.length - 1]
+      if (!lastMessage) {
+        return prev
+      }
+
+      if (lastMessage.sender['_id'].toString() === userId.toString()) {
+        return prev
+      }
+
+      const hasSeen = lastMessage.seenUsers.some(seenUser => {
+        return seenUser['_id'].toString() === userId.toString()
+      })
+      if (hasSeen) return prev
+
+      prev.push(lastMessage)
+      return prev
+    }, [])
+
+    return notSeenMessages
   }
 }

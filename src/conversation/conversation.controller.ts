@@ -39,7 +39,7 @@ export class ConversationController {
     @GetUserRequest() user: UserDocument,
     @Body() createConvDto: CreateConvDto
   ) {
-    const result = await this.consversationService.createConversation(user, createConvDto)
+    const result = await this.consversationService.createConversation(user._id, createConvDto)
     return {
       success: true,
       message: 'Conversation created successfully',
@@ -166,7 +166,7 @@ export class ConversationController {
     )
     return {
       success: true,
-      message: 'remove members successfully'
+      message: 'Remove members successfully'
     }
   }
 
@@ -238,6 +238,15 @@ export class ConversationController {
       success: true,
       message: "Search user's conversation successfully",
       metadata: await this.consversationService.search(user._id, query)
+    }
+  }
+
+  @Get('not-seen/message')
+  async getNotSeenMessage(@GetUserRequest() user: UserDocument) {
+    return {
+      success: true,
+      message: 'Get not seen message successfully',
+      metadata: await this.consversationService.getNotSeenMessage(user._id)
     }
   }
 }

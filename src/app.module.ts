@@ -12,7 +12,6 @@ import { join } from 'path'
 import { PusherModule } from './pusher/pusher.module'
 import { ConversationModule } from './conversation/conversation.module'
 import { MessageModule } from './message/message.module'
-import { NotificationModule } from './notification/notification.module'
 dotenv.config()
 
 @Module({
@@ -47,8 +46,7 @@ dotenv.config()
     UserModule,
     PusherModule,
     ConversationModule,
-    MessageModule,
-    NotificationModule
+    MessageModule
   ],
   controllers: [AppController],
   providers: [
