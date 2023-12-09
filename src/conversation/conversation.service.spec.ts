@@ -32,7 +32,8 @@ describe('ConversationService', () => {
   }
 
   const mockUserModel = {
-    findOne: jest.fn()
+    findOne: jest.fn(),
+    find: jest.fn()
   }
 
   const mockConversationModel = {
@@ -453,18 +454,68 @@ describe('ConversationService', () => {
   })
 
   describe('addMembers', () => {
+    const mockConversation = {
+      _id: new Types.ObjectId('655f7423b014739c9499ab1a'),
+      name: 'conversation name',
+      thumb: 'thumb',
+      isGroup: true,
+      members: [
+        new Types.ObjectId('655f73beb014739c9499ab11'),
+        new Types.ObjectId('655f73eab014739c9499ab14')
+      ],
+      messages: [
+        {
+          _id: new Types.ObjectId('655f7423b014739c9499a56a'),
+          sender: {
+            _id: new Types.ObjectId('655f73beb014739c94996611'),
+            displayName: 'Kiyotaka Ayanokouji',
+            firstName: 'Kiyotaka',
+            lastName: 'Ayanokouji',
+            email: 'email'
+          },
+          images: [],
+          seenUsers: [new Types.ObjectId('655f7423b01473339499ab1a')],
+          content: 'message content',
+          createdAt: '2021-01-01T00:00:00.000Z'
+        },
+        {
+          _id: new Types.ObjectId('655f7423b014739c9499ab1a'),
+          sender: {
+            _id: new Types.ObjectId('655f73beb014739c9499ab11'),
+            displayName: 'Kiyotaka Ayanokouji',
+            firstName: 'Kiyotaka',
+            lastName: 'Ayanokouji',
+            email: 'email'
+          },
+          images: [],
+          seenUsers: [new Types.ObjectId('655f7423b014739c9499ab1a')],
+          content: 'message content',
+          createdAt: '2021-01-01T00:00:00.000Z'
+        }
+      ],
+      createdAt: '2021-01-01T00:00:00.000Z',
+      updatedAt: '2021-01-01T00:00:00.000Z'
+    }
     it('should add members error', async () => {
-      jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce(null)
+      jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce({
+        populate: jest.fn().mockReturnValueOnce({
+          populate: jest.fn().mockResolvedValueOnce(null)
+        })
+      })
+
+      jest.spyOn(mockUserModel, 'find').mockResolvedValueOnce([mockUserData])
 
       await expect(
-        service.addMembers(mockConversation._id.toString(), mockUserData._id, ['objectid'])
+        service.addMembers(mockConversation._id.toString(), mockUserData._id, [
+          '65735fe392fbdfd4575aa73d'
+        ])
       ).rejects.toThrow('Invalid conversation or permission denied')
     })
 
     it('should add members error', async () => {
       await expect(
         service.addMembers(mockConversation._id.toString(), mockUserData._id, [
-          'objectid',
+          '65735fe392fbdfd4575aa73d',
           mockUserData._id.toString()
         ])
       ).rejects.toThrow('Invalid input')
@@ -472,19 +523,33 @@ describe('ConversationService', () => {
 
     it('should add members error', async () => {
       jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce({
-        ...mockConversation,
-        isGroup: false
+        populate: jest.fn().mockReturnValueOnce({
+          populate: jest.fn().mockResolvedValueOnce({
+            ...mockConversation,
+            isGroup: false
+          })
+        })
       })
 
+      jest.spyOn(mockUserModel, 'find').mockResolvedValueOnce([mockUserData])
+
       await expect(
-        service.addMembers(mockConversation._id.toString(), mockUserData._id, ['objectid'])
+        service.addMembers(mockConversation._id.toString(), mockUserData._id, [
+          '65735fe392fbdfd4575aa73d'
+        ])
       ).rejects.toThrow('Invalid conversation')
     })
 
     it('should add members error', async () => {
       jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce({
-        ...mockConversation
+        populate: jest.fn().mockReturnValueOnce({
+          populate: jest.fn().mockResolvedValueOnce({
+            ...mockConversation
+          })
+        })
       })
+
+      jest.spyOn(mockUserModel, 'find').mockResolvedValueOnce([mockUserData])
 
       await expect(
         service.addMembers(mockConversation._id.toString(), mockUserData._id, [
@@ -495,9 +560,15 @@ describe('ConversationService', () => {
 
     it('should add members success', async () => {
       jest.spyOn(mockConversationModel, 'findOne').mockReturnValueOnce({
-        ...mockConversation,
-        updateOne: jest.fn().mockResolvedValueOnce(true)
+        populate: jest.fn().mockReturnValueOnce({
+          populate: jest.fn().mockReturnValue({
+            ...mockConversation,
+            updateOne: jest.fn().mockResolvedValue(true)
+          })
+        })
       })
+
+      jest.spyOn(mockUserModel, 'find').mockResolvedValueOnce([mockUserData])
 
       jest.spyOn(mockMessageService, 'createMessage').mockResolvedValue(true)
 

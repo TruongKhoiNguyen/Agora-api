@@ -287,21 +287,35 @@ export class ConversationService {
       }
     })
 
-    const conversation = await this.conversationModel.findOne({
-      _id: new Types.ObjectId(conversationId),
-      admins: { $in: [userId] }
+    const conversation = await this.conversationModel
+      .findOne({
+        _id: new Types.ObjectId(conversationId),
+        admins: { $in: [userId] }
+      })
+      .populate('members', BASIC_INFO_SELECT)
+      .populate({
+        path: 'messages',
+        populate: {
+          path: 'sender',
+          select: BASIC_INFO_SELECT
+        }
+      })
+
+    const members = await this.userModel.find({
+      _id: { $in: memberIds.map(memberId => new Types.ObjectId(memberId)) }
     })
 
     if (!conversation) {
       throw new BadRequestException('Invalid conversation or permission denied')
     }
+    const oldMember = conversation.members.map(member => member['_id'].toString())
 
     if (!conversation.isGroup) {
       throw new BadRequestException('Invalid conversation')
     }
 
     const newMembers = [
-      ...new Set([...conversation.members.map(member => member.toString()), ...memberIds])
+      ...new Set([...conversation.members.map(member => member['_id'].toString()), ...memberIds])
     ]
 
     const numOfAddedMembers = newMembers.length - conversation.members.length
@@ -310,11 +324,13 @@ export class ConversationService {
       throw new BadRequestException('Invalid input')
     }
 
+    conversation.members = [...conversation.members, ...members]
+
     await conversation.updateOne({
       members: newMembers.map(member => new Types.ObjectId(member))
     })
 
-    await this.messageService.createMessage(
+    const newMessage = await this.messageService.createMessage(
       userId,
       {
         content: `Added ${numOfAddedMembers} member(s)`,
@@ -323,8 +339,13 @@ export class ConversationService {
       null,
       MessageTypes.UP_ADD_MEMBER
     )
+    conversation.messages.push(newMessage)
 
-    newMembers.forEach(member => {
+    memberIds.forEach(member => {
+      this.pusherService.trigger(member, 'conversation:new', conversation)
+    })
+
+    oldMember.forEach(member => {
       this.pusherService.trigger(member, 'conversation:update', {
         tag: ConversationTag.ADD_MEMBERS,
         conversationId,
