@@ -79,7 +79,6 @@ export class UserService {
 
     user.friends.map(item => {
       if (item['_id'].toString() === friendId) {
-        console.log(item)
         throw new BadRequestException('Friend already exists')
       }
     })
